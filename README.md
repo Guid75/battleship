@@ -1,2 +1,4 @@
 # battleship
-A little web battleship game
+
+A(nother) battleship game made in Elm
+
