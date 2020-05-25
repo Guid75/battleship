@@ -1,6 +1,5 @@
 module Grid exposing
-    ( Grid
-    , computeGridHeight
+    ( computeGridHeight
     , computeGridWidth
     , drawGrid
     , drawRect
@@ -13,20 +12,9 @@ module Grid exposing
 
 import Html
 import Svg exposing (Svg, g, line, rect)
-import Svg.Attributes exposing (..)
-import Types exposing (FloatCoord, GridCoord, GridSize)
-
-
-type alias Grid =
-    { colCount : Int
-    , rowCount : Int
-    , boldInterval : Int
-    , thinThickness : Float
-    , boldThickness : Float
-    , cellSize : Float
-    , topLeft : FloatCoord
-    , strokeColor : String
-    }
+import Svg.Attributes exposing (fill, height, id, stroke, strokeWidth, width, x, x1, x2, y, y1, y2)
+import Svg.Events
+import Types exposing (FloatCoord, Grid, GridCoord, GridSize, Msg(..))
 
 
 isInGrid : FloatCoord -> Grid -> Bool
@@ -62,8 +50,8 @@ drawSquare grid color padding { col, row } =
         []
 
 
-drawRect : Grid -> String -> Float -> GridCoord -> GridSize -> Svg msg
-drawRect grid color padding topLeft size =
+drawRect : Grid -> String -> String -> Float -> GridCoord -> GridSize -> Svg Msg
+drawRect grid id_ color padding topLeft size =
     let
         topLeftCellCoord =
             getCellCoord topLeft.col topLeft.row grid
@@ -75,14 +63,16 @@ drawRect grid color padding topLeft size =
             { x = bottomRight.x + grid.cellSize, y = bottomRight.y + grid.cellSize }
     in
     rect
-        [ x <| String.fromFloat <| topLeftCellCoord.x + padding
+        [ id id_
+        , x <| String.fromFloat <| topLeftCellCoord.x + padding
         , y <| String.fromFloat <| topLeftCellCoord.y + padding
         , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x - padding * 2.0
         , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y - padding * 2.0
-
-        -- , width <| String.fromFloat <| grid.cellSize * toFloat size.col - padding * 2.0
-        -- , height <| String.fromFloat <| grid.cellSize * toFloat size.row - padding * 2.0
         , fill color
+        , Svg.Events.onMouseOver PieceOver
+        , Svg.Events.onMouseOut PieceOut
+        , Svg.Events.onMouseDown <| PieceDown id_
+        , Svg.Events.onMouseUp <| PieceUp id_
         ]
         []
 

@@ -9,7 +9,7 @@ import Array
 import Matrix exposing (Matrix)
 import Random
 import Random.List
-import Types exposing (Boat, CellType(..), Direction(..), Model, Msg(..))
+import Types exposing (Boat, CellType(..), Direction(..), GridCoord, Model, Msg(..))
 
 
 directionGenerator : Random.Generator Direction
@@ -17,78 +17,74 @@ directionGenerator =
     Random.uniform North [ East, South, West ]
 
 
-shuffleCouples : ( Int, Int ) -> List ( Int, Int ) -> Random.Generator ( Int, Int )
-shuffleCouples cell cells =
-    Random.uniform cell cells
+shuffleCoords : GridCoord -> List GridCoord -> Random.Generator GridCoord
+shuffleCoords coord coords =
+    Random.uniform coord coords
 
 
-couplePlusDirection : Random.Generator ( Int, Int ) -> Random.Generator ( ( Int, Int ), Direction )
-couplePlusDirection coupleGenerator =
-    Random.pair coupleGenerator directionGenerator
+coordPlusDirection : Random.Generator GridCoord -> Random.Generator ( GridCoord, Direction )
+coordPlusDirection coordGenerator =
+    Random.pair coordGenerator directionGenerator
 
 
-buildShuffleCommand : List ( Int, Int ) -> Cmd Msg
+buildShuffleCommand : List GridCoord -> Cmd Msg
 buildShuffleCommand cells =
     case cells of
         head :: tail ->
             let
                 shuffleGen =
-                    shuffleCouples head tail
+                    shuffleCoords head tail
 
-                couplePlusDir =
-                    couplePlusDirection shuffleGen
+                coordPlusDir =
+                    coordPlusDirection shuffleGen
             in
-            Random.generate GetCouplePlusDirection couplePlusDir
+            Random.generate GetCoordAndDirection coordPlusDir
 
         [] ->
             Cmd.none
 
 
-createBoatStartCouples : Int -> Int -> Int -> Int -> List ( Int, Int )
-createBoatStartCouples minX minY maxX maxY =
+createBoatStartCouples : Int -> Int -> Int -> Int -> List GridCoord
+createBoatStartCouples minCol minRow maxCol maxRow =
     let
         matrix =
-            Matrix.generate (maxX - minX + 1) (maxY - minY + 1) (\x y -> ( x + minX, y + minY ))
+            Matrix.generate (maxCol - minCol + 1) (maxRow - minRow + 1) (\col row -> { col = col + minCol, row = row + minRow })
     in
     matrix
         |> Matrix.toArray
         |> Array.toList
 
 
-computeBoatCellPositions : Boat -> List ( Int, Int )
+computeBoatCellPositions : Boat -> List GridCoord
 computeBoatCellPositions { pos, size, dir } =
-    let
-        ( xInit, yInit ) =
-            pos
-    in
     case dir of
         North ->
             List.foldl
-                (\y positions -> ( xInit, y ) :: positions)
+                (\row positions -> { col = pos.col, row = row } :: positions)
                 []
             <|
-                List.range (yInit - size + 1) yInit
+                List.range (pos.row - size + 1) pos.row
 
         South ->
             List.foldl
-                (\y positions -> ( xInit, y ) :: positions)
+                (\row positions -> { col = pos.col, row = row } :: positions)
                 []
             <|
-                List.range yInit (yInit + size - 1)
+                List.range pos.row (pos.row + size - 1)
 
         East ->
             List.foldl
-                (\x positions -> ( x, yInit ) :: positions)
+                (\col positions -> { col = col, row = pos.row } :: positions)
                 []
             <|
-                List.range xInit (xInit + size - 1)
+                List.range pos.col (pos.col + size - 1)
 
         West ->
             List.foldl
-                (\x positions -> ( x, yInit ) :: positions)
+                (\col positions -> { col = col, row = pos.row } :: positions)
                 []
             <|
-                List.range (xInit - size + 1) xInit
+                List.range (pos.col - size + 1) pos.col
 
 
 isBoatColliding : Boat -> Matrix CellType -> Bool
@@ -97,12 +93,12 @@ isBoatColliding boat matrix =
         boatCellPositions =
             computeBoatCellPositions boat
 
-        isCellColliding ( x, y ) =
-            if x < 0 || x > 9 || y < 0 || y > 10 then
+        isCellColliding { col, row } =
+            if col < 0 || col > 9 || row < 0 || row > 10 then
                 True
 
             else
-                case Matrix.get x y matrix of
+                case Matrix.get col row matrix of
                     Ok value ->
                         value /= Free
 
@@ -118,28 +114,28 @@ writeBoat boat gameMatrix =
         boatCellPositions =
             computeBoatCellPositions boat
 
-        writeSurroundedCellIfEmpty ( x, y ) matrix =
-            case Matrix.get x y matrix of
+        writeSurroundedCellIfEmpty ( col, row ) matrix =
+            case Matrix.get col row matrix of
                 Ok Free ->
-                    Matrix.set x y NextTo matrix
+                    Matrix.set col row NextTo matrix
 
                 _ ->
                     matrix
 
-        writeSurroundedCells ( x, y ) matrix =
+        writeSurroundedCells ( col, row ) matrix =
             matrix
-                |> writeSurroundedCellIfEmpty ( x - 1, y )
-                |> writeSurroundedCellIfEmpty ( x - 1, y - 1 )
-                |> writeSurroundedCellIfEmpty ( x, y - 1 )
-                |> writeSurroundedCellIfEmpty ( x + 1, y - 1 )
-                |> writeSurroundedCellIfEmpty ( x + 1, y )
-                |> writeSurroundedCellIfEmpty ( x + 1, y + 1 )
-                |> writeSurroundedCellIfEmpty ( x, y + 1 )
-                |> writeSurroundedCellIfEmpty ( x - 1, y + 1 )
+                |> writeSurroundedCellIfEmpty ( col - 1, row )
+                |> writeSurroundedCellIfEmpty ( col - 1, row - 1 )
+                |> writeSurroundedCellIfEmpty ( col, row - 1 )
+                |> writeSurroundedCellIfEmpty ( col + 1, row - 1 )
+                |> writeSurroundedCellIfEmpty ( col + 1, row )
+                |> writeSurroundedCellIfEmpty ( col + 1, row + 1 )
+                |> writeSurroundedCellIfEmpty ( col, row + 1 )
+                |> writeSurroundedCellIfEmpty ( col - 1, row + 1 )
 
-        writeBoatCell ( x, y ) matrix =
-            Matrix.set x y Occupied matrix
-                |> writeSurroundedCells ( x, y )
+        writeBoatCell { col, row } matrix =
+            Matrix.set col row Occupied matrix
+                |> writeSurroundedCells ( col, row )
     in
     List.foldl writeBoatCell gameMatrix boatCellPositions
 
@@ -197,13 +193,13 @@ tryToPlace boat matrix =
         ( matrix, Nothing )
 
 
-computeAvailableCells : Matrix CellType -> List ( Int, Int )
+computeAvailableCells : Matrix CellType -> List GridCoord
 computeAvailableCells matrix =
     matrix
         |> Matrix.indexedMap
-            (\x y cellType ->
+            (\col row cellType ->
                 if cellType == Free then
-                    Just ( x, y )
+                    Just { col = col, row = row }
 
                 else
                     Nothing
@@ -211,8 +207,8 @@ computeAvailableCells matrix =
         |> Matrix.foldr
             (\v list ->
                 case v of
-                    Just ( x, y ) ->
-                        ( x, y ) :: list
+                    Just { col, row } ->
+                        { col = col, row = row } :: list
 
                     Nothing ->
                         list

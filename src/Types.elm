@@ -1,34 +1,68 @@
 module Types exposing
     ( Boat
+    , BoatDef
     , CellType(..)
     , Direction(..)
     , FloatCoord
+    , Grid
     , GridCoord
     , GridSize
     , Model
     , Msg(..)
+    , Turn(..)
     )
 
+import Dict exposing (Dict)
+import Html.Events.Extra.Mouse as Mouse
 import Matrix exposing (Matrix)
 
 
+type Turn
+    = Player
+    | CPU
+
+
+type alias Board =
+    { matrix : Matrix CellType
+    , boats : Dict String Boat
+    }
+
+
 type alias Model =
-    { board : Matrix CellType
-    , availableCells : List ( Int, Int )
-    , boatsToPlace : List Int
-    , placedBoats : List Boat
+    { myBoard : Board
+    , cpuBoard : Board
+    , boatsToPlace : List BoatDef
+    , turn : Maybe Turn
+    , myGrid : Grid
+    , cpuGrid : Grid
+    , currentMousePos : ( Float, Float )
+    , clickedBoat : Maybe Boat
+    , clickedCell : Maybe GridCoord
     }
 
 
 type Msg
-    = GetCouplePlusDirection ( ( Int, Int ), Direction )
-    | Generate
+    = GetCoordAndDirection ( GridCoord, Direction )
+    | Generate Turn
+    | PieceOver
+    | PieceOut
+    | PieceDown String
+    | PieceUp String
+    | MouseMove String Mouse.Event
+    | SvgMousePosResult ( String, Float, Float )
+
+
+type alias BoatDef =
+    { id : String
+    , size : Int
+    }
 
 
 type alias Boat =
-    { pos : ( Int, Int )
+    { pos : GridCoord
     , size : Int
     , dir : Direction
+    , id : String
     }
 
 
@@ -60,4 +94,16 @@ type alias GridSize =
 type alias FloatCoord =
     { x : Float
     , y : Float
+    }
+
+
+type alias Grid =
+    { colCount : Int
+    , rowCount : Int
+    , boldInterval : Int
+    , thinThickness : Float
+    , boldThickness : Float
+    , cellSize : Float
+    , topLeft : FloatCoord
+    , strokeColor : String
     }
