@@ -35,7 +35,7 @@ type alias Model =
     , turn : Maybe Turn
     , myGrid : Grid
     , cpuGrid : Grid
-    , currentMousePos : ( Float, Float )
+    , currentMousePos : FloatCoord
     , clickedBoat : Maybe Boat
     , clickedCell : Maybe GridCoord
     }
@@ -46,9 +46,11 @@ type Msg
     | Generate Turn
     | PieceOver
     | PieceOut
-    | PieceDown String
-    | PieceUp String
+      -- | PieceDown String
+      -- | PieceUp String
     | MouseMove String Mouse.Event
+    | MouseDown String Mouse.Event
+    | MouseUp String Mouse.Event
     | SvgMousePosResult ( String, Float, Float )
 
 

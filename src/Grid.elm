@@ -71,8 +71,9 @@ drawRect grid id_ color padding topLeft size =
         , fill color
         , Svg.Events.onMouseOver PieceOver
         , Svg.Events.onMouseOut PieceOut
-        , Svg.Events.onMouseDown <| PieceDown id_
-        , Svg.Events.onMouseUp <| PieceUp id_
+
+        -- , Svg.Events.onMouseDown <| PieceDown id_
+        -- , Svg.Events.onMouseUp <| PieceUp id_
         ]
         []
 

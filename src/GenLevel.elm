@@ -1,6 +1,7 @@
 module GenLevel exposing
     ( buildShuffleCommand
     , computeAvailableCells
+    , computeBoatCellPositions
     , createBoatStartCouples
     , tryToPlace
     )

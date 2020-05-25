@@ -5,6 +5,7 @@ import Animator.Inline
 import Array
 import Browser
 import Dict exposing (Dict)
+import Dict.Extra
 import Element exposing (Element, alignRight, centerY, column, el, fill, padding, rgb255, row, spacing, text, width)
 import GenLevel
 import Grid exposing (drawGrid)
@@ -69,7 +70,7 @@ init flags =
       , myGrid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
       , cpuGrid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
       , turn = Nothing
-      , currentMousePos = ( 0, 0 )
+      , currentMousePos = { x = 0, y = 0 }
       , clickedBoat = Nothing
       , clickedCell = Nothing
       }
@@ -159,6 +160,8 @@ viewBoard grid model svgBoats id_ =
         , height "400"
         , viewBox "0 0 400 400"
         , Mouse.onMove (MouseMove id_)
+        , Mouse.onDown (MouseDown id_)
+        , Mouse.onUp (MouseUp id_)
         ]
     <|
         List.concat [ [ drawGrid grid [] ], svgBoats ]
@@ -262,45 +265,85 @@ mouseMoveOnMyBoard ( x, y ) model =
             { model | myBoard = newBoards }
 
         _ ->
-            { model | currentMousePos = ( x, y ) }
+            model
 
 
 mouseMoveOnCPUBoard : ( Float, Float ) -> Model -> Model
 mouseMoveOnCPUBoard ( x, y ) model =
-    { model | currentMousePos = ( x, y ) }
+    model
 
 
 mouseMove : ( String, Float, Float ) -> Model -> Model
 mouseMove ( id, x, y ) model =
+    let
+        newModel =
+            { model | currentMousePos = { x = x, y = y } }
+    in
     case id of
         "myBoard" ->
-            mouseMoveOnMyBoard ( x, y ) model
+            mouseMoveOnMyBoard ( x, y ) newModel
 
         _ ->
-            mouseMoveOnCPUBoard ( x, y ) model
+            mouseMoveOnCPUBoard ( x, y ) newModel
 
 
-pieceDown : String -> Model -> Model
-pieceDown id model =
+isCellBelongToBoat : GridCoord -> Boat -> Bool
+isCellBelongToBoat cell boat =
+    GenLevel.computeBoatCellPositions boat
+        |> List.any (\boatCell -> boatCell == cell)
+
+
+getBoatByCell : GridCoord -> Model -> Maybe Boat
+getBoatByCell cell model =
+    case Dict.Extra.find (\_ boat -> isCellBelongToBoat cell boat) model.myBoard.boats of
+        Just ( id, boat ) ->
+            Just boat
+
+        _ ->
+            Nothing
+
+
+mouseDownMyBoard : Mouse.Event -> Model -> Model
+mouseDownMyBoard event model =
     let
-        ( x, y ) =
-            model.currentMousePos
+        cell =
+            Grid.getClosestCell model.currentMousePos model.myGrid
 
-        boat =
-            Dict.get id model.myBoard.boats
+        maybeBoat =
+            getBoatByCell cell model
     in
-    { model | clickedBoat = boat, clickedCell = Just <| Grid.getClosestCell { x = x, y = y } model.myGrid }
+    { model | clickedBoat = maybeBoat, clickedCell = Just cell }
 
 
-pieceUp : String -> Model -> Model
-pieceUp id model =
+mouseDownCpuBoard : Mouse.Event -> Model -> Model
+mouseDownCpuBoard event model =
+    model
+
+
+mouseUpMyBoard : Mouse.Event -> Model -> Model
+mouseUpMyBoard event model =
+    model
+
+
+mouseDown : String -> Mouse.Event -> Model -> Model
+mouseDown boardId event model =
+    case boardId of
+        "myBoard" ->
+            mouseDownMyBoard event model
+
+        _ ->
+            mouseDownCpuBoard event model
+
+
+mouseUp : String -> Mouse.Event -> Model -> Model
+mouseUp id event model =
     { model | clickedBoat = Nothing, clickedCell = Nothing }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        -- case Debug.log "msg" msg of
+    -- case msg of
+    case Debug.log "msg" msg of
         GetCoordAndDirection ( pos, dir ) ->
             iterPlacement pos dir model
 
@@ -317,11 +360,11 @@ update msg model =
         PieceOut ->
             ( model, Cmd.none )
 
-        PieceDown id ->
-            ( pieceDown id model, Cmd.none )
+        MouseDown id event ->
+            ( mouseDown id event model, Cmd.none )
 
-        PieceUp id ->
-            ( pieceUp id model, Cmd.none )
+        MouseUp id event ->
+            ( mouseUp id event model, Cmd.none )
 
         MouseMove id event ->
             let
