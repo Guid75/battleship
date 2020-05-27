@@ -41,6 +41,7 @@ type alias Board =
     , boatsToPlace : List BoatDef
     , boats : Dict String Boat
     , shots : List Shot
+    , cellOver : Maybe GridCoord
     }
 
 

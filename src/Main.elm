@@ -63,16 +63,44 @@ initModel : Model -> Turn -> Model
 initModel model turn =
     case turn of
         Player ->
-            { model | myBoard = { matrix = createFreshMatrix, boatsToPlace = boatDefs, boats = Dict.empty, shots = [] } }
+            { model
+                | myBoard =
+                    { matrix = createFreshMatrix
+                    , boatsToPlace = boatDefs
+                    , boats = Dict.empty
+                    , shots = []
+                    , cellOver = Nothing
+                    }
+            }
 
         CPU ->
-            { model | cpuBoard = { matrix = createFreshMatrix, boatsToPlace = boatDefs, boats = Dict.empty, shots = [] } }
+            { model
+                | cpuBoard =
+                    { matrix = createFreshMatrix
+                    , boatsToPlace = boatDefs
+                    , boats = Dict.empty
+                    , shots = []
+                    , cellOver = Nothing
+                    }
+            }
 
 
 init : () -> ( Model, Cmd Msg )
 init flags =
-    ( { myBoard = { matrix = createFreshMatrix, boatsToPlace = boatDefs, boats = Dict.empty, shots = [] }
-      , cpuBoard = { matrix = createFreshMatrix, boatsToPlace = boatDefs, boats = Dict.empty, shots = [] }
+    ( { myBoard =
+            { matrix = createFreshMatrix
+            , boatsToPlace = boatDefs
+            , boats = Dict.empty
+            , shots = []
+            , cellOver = Nothing
+            }
+      , cpuBoard =
+            { matrix = createFreshMatrix
+            , boatsToPlace = boatDefs
+            , boats = Dict.empty
+            , shots = []
+            , cellOver = Nothing
+            }
       , myGrid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
       , cpuGrid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
       , currentMousePos = { x = 0, y = 0 }
@@ -205,6 +233,15 @@ generateBoatsSvg grid boats focusedBoat model =
 
 
 viewBoard grid model svgBoats id_ =
+    let
+        cellOverSvg =
+            case ( model.cpuBoard.cellOver, id_ ) of
+                ( Just coord, "cpuBoard" ) ->
+                    [ Grid.drawSquare model.cpuGrid "#FF000088" 0 coord ]
+
+                _ ->
+                    []
+    in
     svg
         [ id id_
         , Svg.Attributes.width "400"
@@ -215,7 +252,7 @@ viewBoard grid model svgBoats id_ =
         , Mouse.onUp (MouseUp id_)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], svgBoats ]
+        List.concat [ [ drawGrid grid [] ], svgBoats, cellOverSvg ]
 
 
 viewBoards model =
@@ -223,13 +260,13 @@ viewBoards model =
         svgBoats =
             generateBoatsSvg model.myGrid model.myBoard.boats model.focusedBoat model
 
-        svgBoatsCPU =
-            generateBoatsSvg model.myGrid model.cpuBoard.boats model.focusedBoat model
+        -- svgBoatsCPU =
+        --     generateBoatsSvg model.myGrid model.cpuBoard.boats model.focusedBoat model
     in
     row
         [ padding 40, Element.spacing 40 ]
         [ Element.html <| viewBoard model.myGrid model svgBoats "myBoard"
-        , Element.html <| viewBoard model.cpuGrid model svgBoatsCPU "cpuBoard"
+        , Element.html <| viewBoard model.cpuGrid model [] "cpuBoard"
         ]
 
 
@@ -324,7 +361,14 @@ mouseMoveOnMyBoard ( x, y ) model =
 
 mouseMoveOnCPUBoard : ( Float, Float ) -> Model -> Model
 mouseMoveOnCPUBoard ( x, y ) model =
-    model
+    let
+        cell =
+            Grid.getClosestCell { x = x, y = y } model.cpuGrid
+
+        board =
+            model.cpuBoard
+    in
+    { model | cpuBoard = { board | cellOver = Just cell } }
 
 
 mouseMove : ( String, Float, Float ) -> Model -> Model
@@ -399,9 +443,19 @@ mouseDown boardId event model =
             mouseDownCpuBoard event model
 
 
+mouseUpCpu : Mouse.Event -> Model -> Model
+mouseUpCpu event model =
+    model
+
+
 mouseUp : String -> Mouse.Event -> Model -> Model
-mouseUp id event model =
-    { model | clickedBoat = Nothing, clickedCell = Nothing }
+mouseUp boardId event model =
+    case boardId of
+        "myBoard" ->
+            { model | clickedBoat = Nothing, clickedCell = Nothing }
+
+        _ ->
+            mouseUpCpu event model
 
 
 pieceOver : String -> Model -> Model
