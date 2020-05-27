@@ -1,6 +1,6 @@
 module Figures exposing
-    ( drawCircle
-    , drawRect
+    ( drawRect
+    , drawTarget
     )
 
 import Color
@@ -11,8 +11,8 @@ import Svg.Events
 import Types exposing (FloatCoord, Grid, GridCoord, GridSize, Msg(..))
 
 
-drawCircle : List (Svg.Attribute Msg) -> Grid -> Color.Color -> GridCoord -> Svg Msg
-drawCircle attrs grid color { col, row } =
+drawTarget : List (Svg.Attribute Msg) -> Grid -> Color.Color -> GridCoord -> Svg Msg
+drawTarget attrs grid color { col, row } =
     let
         cellCoord =
             Grid.getCellCoord col row grid
@@ -22,15 +22,27 @@ drawCircle attrs grid color { col, row } =
             , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
             , r <| String.fromFloat <| grid.cellSize / 2.0 - 2.0
             , fill <| Color.toCssString color
+            , stroke "#FF0000"
+            , strokeWidth "2.0"
             ]
     in
-    Svg.circle
-        (List.concat
-            [ innerAttrs
-            , attrs
-            ]
-        )
+    Svg.g
         []
+        [ Svg.circle
+            (List.concat
+                [ innerAttrs
+                , attrs
+                ]
+            )
+            []
+        , Svg.circle
+            [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
+            , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
+            , r "2.0"
+            , fill "#FF0000"
+            ]
+            []
+        ]
 
 
 drawRect : List (Svg.Attribute Msg) -> Grid -> String -> Color.Color -> Float -> GridCoord -> GridSize -> Svg Msg

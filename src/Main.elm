@@ -238,12 +238,10 @@ viewBoard grid model svgBoats id_ =
         cellOverSvg =
             case ( model.cpuBoard.cellOver, id_ ) of
                 ( Just coord, "cpuBoard" ) ->
-                    [ Figures.drawCircle
-                        [ stroke "#FF0000"
-                        , strokeWidth "2.0"
-                        ]
+                    [ Figures.drawTarget
+                        []
                         model.cpuGrid
-                        Color.black
+                        Color.gray
                         coord
                     ]
 
