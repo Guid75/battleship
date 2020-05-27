@@ -1,8 +1,8 @@
 module GenLevel exposing
-    ( buildShuffleCommand
-    , computeAvailableCells
+    ( computeAvailableCells
     , computeBoatCellPositions
     , createBoatStartCouples
+    , randomizeBoatPlacements
     , tryToPlace
     )
 
@@ -10,7 +10,7 @@ import Array
 import Matrix exposing (Matrix)
 import Random
 import Random.List
-import Types exposing (Boat, CellType(..), Direction(..), GridCoord, Model, Msg(..))
+import Types exposing (Boat, CellType(..), Direction(..), GridCoord, Model, Msg(..), Turn)
 
 
 directionGenerator : Random.Generator Direction
@@ -28,8 +28,8 @@ coordPlusDirection coordGenerator =
     Random.pair coordGenerator directionGenerator
 
 
-buildShuffleCommand : List GridCoord -> Cmd Msg
-buildShuffleCommand cells =
+randomizeBoatPlacements : Turn -> List GridCoord -> Cmd Msg
+randomizeBoatPlacements turn cells =
     case cells of
         head :: tail ->
             let
@@ -39,7 +39,7 @@ buildShuffleCommand cells =
                 coordPlusDir =
                     coordPlusDirection shuffleGen
             in
-            Random.generate GetCoordAndDirection coordPlusDir
+            Random.generate (GetCoordAndDirection turn) coordPlusDir
 
         [] ->
             Cmd.none

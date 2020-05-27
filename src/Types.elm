@@ -12,9 +12,12 @@ module Types exposing
     , Turn(..)
     )
 
+import Animator
+import Animator.Inline
 import Dict exposing (Dict)
 import Html.Events.Extra.Mouse as Mouse
 import Matrix exposing (Matrix)
+import Time
 
 
 type Turn
@@ -22,36 +25,49 @@ type Turn
     | CPU
 
 
+type ShotType
+    = Hit
+    | Miss
+
+
+type alias Shot =
+    { coord : GridCoord
+    , shotType : ShotType
+    }
+
+
 type alias Board =
     { matrix : Matrix CellType
+    , boatsToPlace : List BoatDef
     , boats : Dict String Boat
+    , shots : List Shot
     }
 
 
 type alias Model =
     { myBoard : Board
     , cpuBoard : Board
-    , boatsToPlace : List BoatDef
-    , turn : Maybe Turn
     , myGrid : Grid
     , cpuGrid : Grid
     , currentMousePos : FloatCoord
     , clickedBoat : Maybe Boat
     , clickedCell : Maybe GridCoord
+    , focusedBoat : Maybe Boat
+    , focusedUp : Animator.Timeline Bool
     }
 
 
 type Msg
-    = GetCoordAndDirection ( GridCoord, Direction )
+    = GetCoordAndDirection Turn ( GridCoord, Direction )
     | Generate Turn
-    | PieceOver
-    | PieceOut
-      -- | PieceDown String
-      -- | PieceUp String
+    | PieceOver String
+    | PieceOut String
     | MouseMove String Mouse.Event
     | MouseDown String Mouse.Event
     | MouseUp String Mouse.Event
     | SvgMousePosResult ( String, Float, Float )
+    | Blink
+    | Tick Time.Posix
 
 
 type alias BoatDef =

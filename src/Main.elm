@@ -4,6 +4,7 @@ import Animator
 import Animator.Inline
 import Array
 import Browser
+import Color
 import Dict exposing (Dict)
 import Dict.Extra
 import Element exposing (Element, alignRight, centerY, column, el, fill, padding, rgb255, row, spacing, text, width)
@@ -21,6 +22,16 @@ import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
 import Time
 import Types exposing (Boat, BoatDef, CellType(..), Direction(..), Grid, GridCoord, Model, Msg(..), Turn(..))
+
+
+animator : Animator.Animator Model
+animator =
+    Animator.animator
+        |> Animator.watching
+            .focusedUp
+            (\newFocusedUp model ->
+                { model | focusedUp = newFocusedUp }
+            )
 
 
 boatDefs : List BoatDef
@@ -50,31 +61,30 @@ createFreshMatrix =
 
 initModel : Model -> Turn -> Model
 initModel model turn =
-    let
-        newModel =
-            { model | boatsToPlace = boatDefs }
-    in
     case turn of
         Player ->
-            { newModel | myBoard = { matrix = createFreshMatrix, boats = Dict.empty } }
+            { model | myBoard = { matrix = createFreshMatrix, boatsToPlace = boatDefs, boats = Dict.empty, shots = [] } }
 
         CPU ->
-            { newModel | cpuBoard = { matrix = createFreshMatrix, boats = Dict.empty } }
+            { model | cpuBoard = { matrix = createFreshMatrix, boatsToPlace = boatDefs, boats = Dict.empty, shots = [] } }
 
 
 init : () -> ( Model, Cmd Msg )
 init flags =
-    ( { myBoard = { matrix = createFreshMatrix, boats = Dict.empty }
-      , cpuBoard = { matrix = createFreshMatrix, boats = Dict.empty }
-      , boatsToPlace = boatDefs
+    ( { myBoard = { matrix = createFreshMatrix, boatsToPlace = boatDefs, boats = Dict.empty, shots = [] }
+      , cpuBoard = { matrix = createFreshMatrix, boatsToPlace = boatDefs, boats = Dict.empty, shots = [] }
       , myGrid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
       , cpuGrid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
-      , turn = Nothing
       , currentMousePos = { x = 0, y = 0 }
       , clickedBoat = Nothing
       , clickedCell = Nothing
+      , focusedBoat = Nothing
+      , focusedUp = Animator.init False
       }
-    , Cmd.none
+    , Cmd.batch
+        [ GenLevel.randomizeBoatPlacements Player <| GenLevel.createBoatStartCouples 0 0 9 9
+        , GenLevel.randomizeBoatPlacements CPU <| GenLevel.createBoatStartCouples 0 0 9 9
+        ]
     )
 
 
@@ -106,51 +116,92 @@ displayRow matrix rowIndex =
                 []
 
 
-sizeToColor : Int -> String
+sizeToColor : Int -> Color.Color
 sizeToColor size =
     case size of
         2 ->
-            "#FF8888"
+            Color.rgb255 255 136 136
 
         3 ->
-            "#88FF88"
+            Color.rgb255 136 255 136
 
         4 ->
-            "#8888FF"
+            Color.rgb255 136 136 255
 
         5 ->
-            "#888888"
+            Color.rgb255 136 136 136
 
         _ ->
-            "#888888"
+            Color.rgb255 136 136 136
 
 
-boatToSvg grid boat =
+boatToSvg grid boat focusedBoat model =
     let
         id =
             boat.id
 
         color =
             sizeToColor boat.size
+
+        focused =
+            case focusedBoat of
+                Just boat_ ->
+                    boat_.id == id
+
+                _ ->
+                    False
+
+        c =
+            Color.toRgba color
+
+        computeColor f =
+            let
+                red =
+                    c.red + (1.0 - c.red) * f
+
+                green =
+                    c.green + (1.0 - c.green) * f
+
+                blue =
+                    c.blue + (1.0 - c.blue) * f
+            in
+            Color.fromRgba { red = red, green = green, blue = blue, alpha = c.alpha }
+
+        attrs =
+            if focused then
+                [ Animator.Inline.style model.focusedUp
+                    "fill"
+                    (\f -> Color.toCssString <| computeColor f)
+                    (\state ->
+                        if state then
+                            Animator.at 0
+
+                        else
+                            Animator.at 0.6
+                    )
+                ]
+
+            else
+                []
     in
     case boat.dir of
         South ->
-            Grid.drawRect grid id color 2 boat.pos { width = 1, height = boat.size }
+            Grid.drawRect attrs grid id color 2 boat.pos { width = 1, height = boat.size }
 
         East ->
-            Grid.drawRect grid id color 2 boat.pos { width = boat.size, height = 1 }
+            Grid.drawRect attrs grid id color 2 boat.pos { width = boat.size, height = 1 }
 
         North ->
-            Grid.drawRect grid id color 2 { col = boat.pos.col, row = boat.pos.row - boat.size + 1 } { width = 1, height = boat.size }
+            Grid.drawRect attrs grid id color 2 { col = boat.pos.col, row = boat.pos.row - boat.size + 1 } { width = 1, height = boat.size }
 
         West ->
-            Grid.drawRect grid id color 2 { col = boat.pos.col - boat.size + 1, row = boat.pos.row } { width = boat.size, height = 1 }
+            Grid.drawRect attrs grid id color 2 { col = boat.pos.col - boat.size + 1, row = boat.pos.row } { width = boat.size, height = 1 }
 
 
-generateBoatsSvg grid boats =
+generateBoatsSvg grid boats focusedBoat model =
     boats
         |> Dict.values
-        |> List.map (boatToSvg grid)
+        |> List.map (\boat -> boatToSvg grid boat focusedBoat model)
 
 
 viewBoard grid model svgBoats id_ =
@@ -170,15 +221,15 @@ viewBoard grid model svgBoats id_ =
 viewBoards model =
     let
         svgBoats =
-            generateBoatsSvg model.myGrid model.myBoard.boats
+            generateBoatsSvg model.myGrid model.myBoard.boats model.focusedBoat model
 
-        svgBoats2 =
-            generateBoatsSvg model.cpuGrid model.cpuBoard.boats
+        svgBoatsCPU =
+            generateBoatsSvg model.myGrid model.cpuBoard.boats model.focusedBoat model
     in
     row
         [ padding 40, Element.spacing 40 ]
         [ Element.html <| viewBoard model.myGrid model svgBoats "myBoard"
-        , Element.html <| viewBoard model.cpuGrid model svgBoats2 "cpuBoard"
+        , Element.html <| viewBoard model.cpuGrid model svgBoatsCPU "cpuBoard"
         ]
 
 
@@ -194,51 +245,54 @@ view model =
             ]
 
 
-iterPlacement : GridCoord -> Direction -> Model -> ( Model, Cmd Msg )
-iterPlacement pos dir model =
+iterPlacement : Turn -> GridCoord -> Direction -> Model -> ( Model, Cmd Msg )
+iterPlacement turn pos dir model =
     let
         board =
-            case model.turn of
-                Just Player ->
+            case turn of
+                Player ->
                     model.myBoard
 
-                _ ->
+                CPU ->
                     model.cpuBoard
     in
-    case model.boatsToPlace of
+    case board.boatsToPlace of
         head :: tail ->
             case GenLevel.tryToPlace (Boat pos head.size dir head.id) board.matrix of
                 ( matrix, Just boat ) ->
                     let
                         newModel =
-                            case model.turn of
-                                Just Player ->
+                            case turn of
+                                Player ->
                                     { model
                                         | myBoard =
                                             { board
                                                 | matrix = matrix
+                                                , boatsToPlace = tail
                                                 , boats = Dict.insert head.id boat board.boats
                                             }
                                     }
 
-                                _ ->
+                                CPU ->
                                     { model
                                         | cpuBoard =
                                             { board
                                                 | matrix = matrix
+                                                , boatsToPlace = tail
                                                 , boats = Dict.insert head.id boat board.boats
                                             }
                                     }
                     in
-                    ( { newModel
-                        | boatsToPlace = tail
-                      }
-                    , GenLevel.buildShuffleCommand <|
-                        GenLevel.computeAvailableCells matrix
+                    ( newModel
+                    , GenLevel.computeAvailableCells matrix
+                        |> GenLevel.randomizeBoatPlacements turn
                     )
 
                 _ ->
-                    ( model, GenLevel.buildShuffleCommand <| GenLevel.computeAvailableCells board.matrix )
+                    ( model
+                    , GenLevel.computeAvailableCells board.matrix
+                        |> GenLevel.randomizeBoatPlacements turn
+                    )
 
         [] ->
             ( model, Cmd.none )
@@ -303,6 +357,16 @@ getBoatByCell cell model =
             Nothing
 
 
+getBoatById : String -> Model -> Maybe Boat
+getBoatById id_ model =
+    case Dict.Extra.find (\_ boat -> boat.id == id_) model.myBoard.boats of
+        Just ( id, boat ) ->
+            Just boat
+
+        _ ->
+            Nothing
+
+
 mouseDownMyBoard : Mouse.Event -> Model -> Model
 mouseDownMyBoard event model =
     let
@@ -340,25 +404,35 @@ mouseUp id event model =
     { model | clickedBoat = Nothing, clickedCell = Nothing }
 
 
+pieceOver : String -> Model -> Model
+pieceOver boatId model =
+    { model | focusedBoat = getBoatById boatId model }
+
+
+pieceOut : String -> Model -> Model
+pieceOut boatId model =
+    { model | focusedBoat = Nothing }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    -- case msg of
-    case Debug.log "msg" msg of
-        GetCoordAndDirection ( pos, dir ) ->
-            iterPlacement pos dir model
+    case msg of
+        -- case Debug.log "msg" msg of
+        GetCoordAndDirection turn ( pos, dir ) ->
+            iterPlacement turn pos dir model
 
         Generate turn ->
             let
                 newModel =
                     initModel model turn
             in
-            ( { newModel | turn = Just turn }, GenLevel.buildShuffleCommand <| GenLevel.createBoatStartCouples 0 0 9 9 )
+            ( newModel, GenLevel.randomizeBoatPlacements turn <| GenLevel.createBoatStartCouples 0 0 9 9 )
 
-        PieceOver ->
-            ( model, Cmd.none )
+        PieceOver boatId ->
+            ( pieceOver boatId model, Cmd.none )
 
-        PieceOut ->
-            ( model, Cmd.none )
+        PieceOut boatId ->
+            ( pieceOut boatId model, Cmd.none )
 
         MouseDown id event ->
             ( mouseDown id event model, Cmd.none )
@@ -376,6 +450,21 @@ update msg model =
         SvgMousePosResult pos ->
             ( mouseMove pos model, Cmd.none )
 
+        Blink ->
+            ( { model
+                | focusedUp =
+                    model.focusedUp
+                        |> Animator.go (Animator.millis 100) (not <| Animator.current model.focusedUp)
+              }
+            , Cmd.none
+            )
+
+        Tick newTime ->
+            ( model
+                |> Animator.update newTime animator
+            , Cmd.none
+            )
+
 
 port requestSvgMousePos : ( String, Int, Int ) -> Cmd msg
 
@@ -385,4 +474,9 @@ port svgMousePosResult : (( String, Float, Float ) -> msg) -> Sub msg
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    svgMousePosResult SvgMousePosResult
+    Sub.batch
+        [ svgMousePosResult SvgMousePosResult
+        , Time.every 200 (always Blink)
+        , animator
+            |> Animator.toSubscription Tick model
+        ]
