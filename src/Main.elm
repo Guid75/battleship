@@ -33,6 +33,11 @@ animator =
             (\newFocusedUp model ->
                 { model | focusedUp = newFocusedUp }
             )
+        |> Animator.watching
+            .fire
+            (\newFire model ->
+                { model | fire = newFire }
+            )
 
 
 boatDefs : List BoatDef
@@ -62,28 +67,30 @@ createFreshMatrix =
 
 initModel : Model -> Turn -> Model
 initModel model turn =
+    let
+        board =
+            case turn of
+                Player ->
+                    model.myBoard
+
+                CPU ->
+                    model.cpuBoard
+
+        newBoard =
+            { board
+                | matrix = createFreshMatrix
+                , boatsToPlace = boatDefs
+                , boats = Dict.empty
+                , shots = []
+                , cellOver = Nothing
+            }
+    in
     case turn of
         Player ->
-            { model
-                | myBoard =
-                    { matrix = createFreshMatrix
-                    , boatsToPlace = boatDefs
-                    , boats = Dict.empty
-                    , shots = []
-                    , cellOver = Nothing
-                    }
-            }
+            { model | myBoard = newBoard }
 
         CPU ->
-            { model
-                | cpuBoard =
-                    { matrix = createFreshMatrix
-                    , boatsToPlace = boatDefs
-                    , boats = Dict.empty
-                    , shots = []
-                    , cellOver = Nothing
-                    }
-            }
+            { model | cpuBoard = newBoard }
 
 
 init : () -> ( Model, Cmd Msg )
@@ -94,6 +101,8 @@ init flags =
             , boats = Dict.empty
             , shots = []
             , cellOver = Nothing
+            , grid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
+            , id = "myBoard"
             }
       , cpuBoard =
             { matrix = createFreshMatrix
@@ -101,14 +110,15 @@ init flags =
             , boats = Dict.empty
             , shots = []
             , cellOver = Nothing
+            , grid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
+            , id = "cpuBoard"
             }
-      , myGrid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
-      , cpuGrid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
       , currentMousePos = { x = 0, y = 0 }
       , clickedBoat = Nothing
       , clickedCell = Nothing
       , focusedBoat = Nothing
       , focusedUp = Animator.init False
+      , fire = Animator.init False
       }
     , Cmd.batch
         [ GenLevel.randomizeBoatPlacements Player <| GenLevel.createBoatStartCouples 0 0 9 9
@@ -233,46 +243,78 @@ generateBoatsSvg grid boats focusedBoat model =
         |> List.map (\boat -> boatToSvg grid boat focusedBoat model)
 
 
-viewBoard grid model svgBoats id_ =
+viewMyBoard model =
     let
+        board =
+            model.myBoard
+
+        grid =
+            board.grid
+
+        svgBoats =
+            generateBoatsSvg grid board.boats model.focusedBoat model
+    in
+    svg
+        [ id board.id
+        , Svg.Attributes.width "400"
+        , height "400"
+        , viewBox "0 0 400 400"
+        , Mouse.onMove (MouseMove board.id)
+        , Mouse.onDown (MouseDown board.id)
+        , Mouse.onUp (MouseUp board.id)
+        ]
+    <|
+        List.concat [ [ drawGrid grid [] ], svgBoats ]
+
+
+viewCpuBoard model =
+    let
+        board =
+            model.cpuBoard
+
+        grid =
+            board.grid
+
+        a =
+            Animator.linear model.fire <|
+                \state ->
+                    if state then
+                        Animator.at 1
+
+                    else
+                        Animator.at 0
+
         cellOverSvg =
-            case ( model.cpuBoard.cellOver, id_ ) of
-                ( Just coord, "cpuBoard" ) ->
+            case board.cellOver of
+                Just coord ->
                     [ Figures.drawTarget
-                        []
-                        model.cpuGrid
+                        grid
                         Color.gray
                         coord
+                        a
                     ]
 
                 _ ->
                     []
     in
     svg
-        [ id id_
+        [ id board.id
         , Svg.Attributes.width "400"
         , height "400"
         , viewBox "0 0 400 400"
-        , Mouse.onMove (MouseMove id_)
-        , Mouse.onDown (MouseDown id_)
-        , Mouse.onUp (MouseUp id_)
+        , Mouse.onMove (MouseMove board.id)
+        , Mouse.onDown (MouseDown board.id)
+        , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], svgBoats, cellOverSvg ]
+        List.concat [ [ drawGrid grid [] ], cellOverSvg ]
 
 
 viewBoards model =
-    let
-        svgBoats =
-            generateBoatsSvg model.myGrid model.myBoard.boats model.focusedBoat model
-
-        -- svgBoatsCPU =
-        --     generateBoatsSvg model.myGrid model.cpuBoard.boats model.focusedBoat model
-    in
     row
         [ padding 40, Element.spacing 40 ]
-        [ Element.html <| viewBoard model.myGrid model svgBoats "myBoard"
-        , Element.html <| viewBoard model.cpuGrid model [] "cpuBoard"
+        [ Element.html <| viewMyBoard model
+        , Element.html <| viewCpuBoard model
         ]
 
 
@@ -344,11 +386,11 @@ iterPlacement turn pos dir model =
 mouseMoveOnMyBoard : ( Float, Float ) -> Model -> Model
 mouseMoveOnMyBoard ( x, y ) model =
     let
-        currentCell =
-            Grid.getClosestCell { x = x, y = y } model.myGrid
-
         board =
             model.myBoard
+
+        currentCell =
+            Grid.getClosestCell { x = x, y = y } board.grid
     in
     case ( model.clickedBoat, model.clickedCell ) of
         ( Just boat, Just clickedCell ) ->
@@ -368,11 +410,11 @@ mouseMoveOnMyBoard ( x, y ) model =
 mouseMoveOnCPUBoard : ( Float, Float ) -> Model -> Model
 mouseMoveOnCPUBoard ( x, y ) model =
     let
-        cell =
-            Grid.getClosestCell { x = x, y = y } model.cpuGrid
-
         board =
             model.cpuBoard
+
+        cell =
+            Grid.getClosestCell { x = x, y = y } board.grid
     in
     { model | cpuBoard = { board | cellOver = Just cell } }
 
@@ -421,7 +463,7 @@ mouseDownMyBoard : Mouse.Event -> Model -> Model
 mouseDownMyBoard event model =
     let
         cell =
-            Grid.getClosestCell model.currentMousePos model.myGrid
+            Grid.getClosestCell model.currentMousePos model.myBoard.grid
 
         maybeBoat =
             getBoatByCell cell model
@@ -431,7 +473,11 @@ mouseDownMyBoard event model =
 
 mouseDownCpuBoard : Mouse.Event -> Model -> Model
 mouseDownCpuBoard event model =
-    model
+    { model
+        | fire =
+            model.fire
+                |> Animator.go (Animator.millis 2000) (not <| Animator.current model.fire)
+    }
 
 
 mouseUpMyBoard : Mouse.Event -> Model -> Model
@@ -451,7 +497,11 @@ mouseDown boardId event model =
 
 mouseUpCpu : Mouse.Event -> Model -> Model
 mouseUpCpu event model =
-    model
+    { model
+        | fire =
+            model.fire
+                |> Animator.go (Animator.millis 2000) (not <| Animator.current model.fire)
+    }
 
 
 mouseUp : String -> Mouse.Event -> Model -> Model

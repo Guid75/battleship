@@ -11,13 +11,15 @@ import Svg.Events
 import Types exposing (FloatCoord, Grid, GridCoord, GridSize, Msg(..))
 
 
-drawTarget : List (Svg.Attribute Msg) -> Grid -> Color.Color -> GridCoord -> Svg Msg
-drawTarget attrs grid color { col, row } =
+drawTarget : Grid -> Color.Color -> GridCoord -> Float -> Svg Msg
+drawTarget grid color { col, row } fireAmount =
     let
         cellCoord =
             Grid.getCellCoord col row grid
-
-        innerAttrs =
+    in
+    Svg.g
+        []
+        [ Svg.circle
             [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
             , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
             , r <| String.fromFloat <| grid.cellSize / 2.0 - 2.0
@@ -25,21 +27,14 @@ drawTarget attrs grid color { col, row } =
             , stroke "#FF0000"
             , strokeWidth "2.0"
             ]
-    in
-    Svg.g
-        []
-        [ Svg.circle
-            (List.concat
-                [ innerAttrs
-                , attrs
-                ]
-            )
             []
         , Svg.circle
             [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
             , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
-            , r "2.0"
-            , fill "#FF0000"
+            , r <| String.fromFloat <| (grid.cellSize / 2.0 - 2.0) * fireAmount
+            , fill <| Color.toCssString Color.yellow
+            , stroke "#FF0000"
+            , strokeWidth "2.0"
             ]
             []
         ]

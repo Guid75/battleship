@@ -42,19 +42,20 @@ type alias Board =
     , boats : Dict String Boat
     , shots : List Shot
     , cellOver : Maybe GridCoord
+    , grid : Grid
+    , id : String
     }
 
 
 type alias Model =
     { myBoard : Board
     , cpuBoard : Board
-    , myGrid : Grid
-    , cpuGrid : Grid
     , currentMousePos : FloatCoord
     , clickedBoat : Maybe Boat
     , clickedCell : Maybe GridCoord
     , focusedBoat : Maybe Boat
     , focusedUp : Animator.Timeline Bool
+    , fire : Animator.Timeline Bool
     }
 
 
