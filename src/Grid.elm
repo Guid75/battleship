@@ -122,6 +122,51 @@ getGridTopLeft grid =
     }
 
 
+drawHorizontalNumeration : Int -> String -> Grid -> Svg msg
+drawHorizontalNumeration column str grid =
+    let
+        topLeftCellCoord =
+            getCellCoord column 0 grid
+    in
+    Svg.text_
+        [ x <| String.fromFloat <| topLeftCellCoord.x + grid.cellSize / 2.0
+        , y <| String.fromFloat <| grid.topLeft.y - 3.0
+        , Svg.Attributes.color "black"
+        , Svg.Attributes.fontSize "20px"
+        , Svg.Attributes.textAnchor "middle"
+        ]
+        [ Svg.text str ]
+
+
+drawHorizontalNumerations : Grid -> List (Svg msg)
+drawHorizontalNumerations grid =
+    List.range 1 grid.colCount
+        |> List.map (\index -> drawHorizontalNumeration (index - 1) (String.fromInt index) grid)
+
+
+drawVerticalNumeration : Int -> String -> Grid -> Svg msg
+drawVerticalNumeration row str grid =
+    let
+        topLeftCellCoord =
+            getCellCoord 0 row grid
+    in
+    Svg.text_
+        [ x <| String.fromFloat <| grid.topLeft.x - 3.0
+        , y <| String.fromFloat <| topLeftCellCoord.y + grid.cellSize / 2.0
+        , Svg.Attributes.color "black"
+        , Svg.Attributes.fontSize "20px"
+        , Svg.Attributes.textAnchor "end"
+        , Svg.Attributes.dominantBaseline "middle"
+        ]
+        [ Svg.text str ]
+
+
+drawVerticalNumerations : Grid -> List (Svg msg)
+drawVerticalNumerations grid =
+    List.range 1 grid.rowCount
+        |> List.map (\index -> drawVerticalNumeration (index - 1) (index + 64 |> Char.fromCode |> String.fromChar) grid)
+
+
 drawGrid : Grid -> List (Html.Attribute msg) -> Svg msg
 drawGrid grid animAttrs =
     g
@@ -129,6 +174,8 @@ drawGrid grid animAttrs =
         (List.concat
             [ List.foldl (drawVerticalLine grid) [] (List.range 0 grid.colCount)
             , List.foldl (drawHorizontalLine grid) [] (List.range 0 grid.rowCount)
+            , drawHorizontalNumerations grid
+            , drawVerticalNumerations grid
             ]
         )
 

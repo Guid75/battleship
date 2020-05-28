@@ -101,7 +101,7 @@ init flags =
             , boats = Dict.empty
             , shots = []
             , cellOver = Nothing
-            , grid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
+            , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#000000"
             , id = "myBoard"
             }
       , cpuBoard =
@@ -110,7 +110,7 @@ init flags =
             , boats = Dict.empty
             , shots = []
             , cellOver = Nothing
-            , grid = Grid 10 10 10 1 2 30 { x = 0, y = 0 } "#000000"
+            , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#000000"
             , id = "cpuBoard"
             }
       , currentMousePos = { x = 0, y = 0 }
