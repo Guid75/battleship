@@ -226,16 +226,16 @@ boatToSvg grid boat focusedBoat model =
     in
     case boat.dir of
         South ->
-            Figures.drawRect attrs grid id color 2 boat.pos { width = 1, height = boat.size }
+            Figures.drawShip attrs grid id color 2 boat.pos { width = 1, height = boat.size }
 
         East ->
-            Figures.drawRect attrs grid id color 2 boat.pos { width = boat.size, height = 1 }
+            Figures.drawShip attrs grid id color 2 boat.pos { width = boat.size, height = 1 }
 
         North ->
-            Figures.drawRect attrs grid id color 2 { col = boat.pos.col, row = boat.pos.row - boat.size + 1 } { width = 1, height = boat.size }
+            Figures.drawShip attrs grid id color 2 { col = boat.pos.col, row = boat.pos.row - boat.size + 1 } { width = 1, height = boat.size }
 
         West ->
-            Figures.drawRect attrs grid id color 2 { col = boat.pos.col - boat.size + 1, row = boat.pos.row } { width = boat.size, height = 1 }
+            Figures.drawShip attrs grid id color 2 { col = boat.pos.col - boat.size + 1, row = boat.pos.row } { width = boat.size, height = 1 }
 
 
 generateBoatsSvg grid boats focusedBoat model =

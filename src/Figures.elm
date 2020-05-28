@@ -1,14 +1,14 @@
 module Figures exposing
     ( drawHit
     , drawMiss
-    , drawRect
+    , drawShip
     , drawTarget
     )
 
 import Color
 import Grid
 import Svg exposing (Svg, g, line, rect)
-import Svg.Attributes exposing (cx, cy, fill, fillOpacity, height, id, r, stroke, strokeWidth, width, x, x1, x2, y, y1, y2)
+import Svg.Attributes exposing (cx, cy, fill, fillOpacity, height, id, r, rx, ry, stroke, strokeWidth, width, x, x1, x2, y, y1, y2)
 import Svg.Events
 import Types exposing (FloatCoord, Grid, GridCoord, GridSize, Msg(..))
 
@@ -74,8 +74,8 @@ drawHit grid { col, row } =
         []
 
 
-drawRect : List (Svg.Attribute Msg) -> Grid -> String -> Color.Color -> Float -> GridCoord -> GridSize -> Svg Msg
-drawRect attrs grid id_ color padding topLeft size =
+drawShip : List (Svg.Attribute Msg) -> Grid -> String -> Color.Color -> Float -> GridCoord -> GridSize -> Svg Msg
+drawShip attrs grid id_ color padding topLeft size =
     let
         topLeftCellCoord =
             Grid.getCellCoord topLeft.col topLeft.row grid
@@ -88,11 +88,14 @@ drawRect attrs grid id_ color padding topLeft size =
 
         innerAttrs =
             [ id id_
+            , rx "10.0"
+            , ry "10.0"
             , x <| String.fromFloat <| topLeftCellCoord.x + padding
             , y <| String.fromFloat <| topLeftCellCoord.y + padding
             , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x - padding * 2.0
             , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y - padding * 2.0
             , fill <| Color.toCssString color
+            , stroke "gray"
             , Svg.Events.onMouseOver <| PieceOver id_
             , Svg.Events.onMouseOut <| PieceOut id_
             ]
