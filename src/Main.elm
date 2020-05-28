@@ -258,8 +258,8 @@ viewMyBoard model =
     svg
         [ id board.id
         , Svg.Attributes.width "400"
-        , height "400"
-        , viewBox "0 0 400 400"
+        , height "350"
+        , viewBox "0 0 400 350"
         , Mouse.onMove (MouseMove board.id)
         , Mouse.onDown (MouseDown board.id)
         , Mouse.onUp (MouseUp board.id)
@@ -326,8 +326,9 @@ viewCpuBoard model =
     svg
         [ id board.id
         , Svg.Attributes.width "400"
-        , height "400"
-        , viewBox "0 0 400 400"
+        , height "350"
+
+        --        , viewBox "0 0 400 350"
         , Mouse.onMove (MouseMove board.id)
         , Mouse.onDown (MouseDown board.id)
         , Mouse.onUp (MouseUp board.id)
@@ -336,11 +337,33 @@ viewCpuBoard model =
         List.concat [ [ drawGrid grid [] ], viewShots model.cpuBoard, cellOverSvg ]
 
 
+viewMe model =
+    column
+        []
+        [ Element.html <| viewMyBoard model
+        , Element.el
+            [ Element.centerX ]
+          <|
+            Element.text "Me"
+        ]
+
+
+viewCpu model =
+    column
+        []
+        [ Element.html <| viewCpuBoard model
+        , Element.el
+            [ Element.centerX ]
+          <|
+            Element.text "CPU"
+        ]
+
+
 viewBoards model =
     row
         [ padding 40, Element.spacing 40 ]
-        [ Element.html <| viewMyBoard model
-        , Element.html <| viewCpuBoard model
+        [ viewMe model
+        , viewCpu model
         ]
 
 
