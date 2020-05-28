@@ -1,5 +1,7 @@
 module Figures exposing
-    ( drawRect
+    ( drawHit
+    , drawMiss
+    , drawRect
     , drawTarget
     )
 
@@ -11,8 +13,8 @@ import Svg.Events
 import Types exposing (FloatCoord, Grid, GridCoord, GridSize, Msg(..))
 
 
-drawTarget : Grid -> Color.Color -> GridCoord -> Float -> Svg Msg
-drawTarget grid color { col, row } fireAmount =
+drawTarget : Grid -> GridCoord -> Float -> Svg Msg
+drawTarget grid { col, row } fireAmount =
     let
         cellCoord =
             Grid.getCellCoord col row grid
@@ -23,7 +25,7 @@ drawTarget grid color { col, row } fireAmount =
             [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
             , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
             , r <| String.fromFloat <| grid.cellSize / 2.0 - 2.0
-            , fill <| Color.toCssString color
+            , fill <| Color.toCssString Color.gray
             , stroke "#FF0000"
             , strokeWidth "2.0"
             ]
@@ -38,6 +40,38 @@ drawTarget grid color { col, row } fireAmount =
             ]
             []
         ]
+
+
+drawMiss : Grid -> GridCoord -> Svg Msg
+drawMiss grid { col, row } =
+    let
+        cellCoord =
+            Grid.getCellCoord col row grid
+    in
+    Svg.circle
+        [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
+        , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
+        , r <| String.fromFloat <| grid.cellSize / 2.0 - 4.0
+        , fill <| Color.toCssString Color.blue
+        , strokeWidth "2.0"
+        ]
+        []
+
+
+drawHit : Grid -> GridCoord -> Svg Msg
+drawHit grid { col, row } =
+    let
+        cellCoord =
+            Grid.getCellCoord col row grid
+    in
+    Svg.circle
+        [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
+        , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
+        , r <| String.fromFloat <| grid.cellSize / 2.0 - 4.0
+        , fill <| Color.toCssString Color.red
+        , strokeWidth "2.0"
+        ]
+        []
 
 
 drawRect : List (Svg.Attribute Msg) -> Grid -> String -> Color.Color -> Float -> GridCoord -> GridSize -> Svg Msg

@@ -1,5 +1,6 @@
 module Types exposing
-    ( Boat
+    ( Board
+    , Boat
     , BoatDef
     , CellType(..)
     , Direction(..)
@@ -25,22 +26,11 @@ type Turn
     | CPU
 
 
-type ShotType
-    = Hit
-    | Miss
-
-
-type alias Shot =
-    { coord : GridCoord
-    , shotType : ShotType
-    }
-
-
 type alias Board =
     { matrix : Matrix CellType
     , boatsToPlace : List BoatDef
     , boats : Dict String Boat
-    , shots : List Shot
+    , shots : List GridCoord
     , cellOver : Maybe GridCoord
     , grid : Grid
     , id : String
@@ -55,7 +45,8 @@ type alias Model =
     , clickedCell : Maybe GridCoord
     , focusedBoat : Maybe Boat
     , focusedUp : Animator.Timeline Bool
-    , fire : Animator.Timeline Bool
+    , firing : Animator.Timeline Bool
+    , firingCell : Maybe GridCoord
     }
 
 

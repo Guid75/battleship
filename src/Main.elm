@@ -22,7 +22,7 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
 import Time
-import Types exposing (Boat, BoatDef, CellType(..), Direction(..), Grid, GridCoord, Model, Msg(..), Turn(..))
+import Types exposing (Board, Boat, BoatDef, CellType(..), Direction(..), Grid, GridCoord, Model, Msg(..), Turn(..))
 
 
 animator : Animator.Animator Model
@@ -34,9 +34,9 @@ animator =
                 { model | focusedUp = newFocusedUp }
             )
         |> Animator.watching
-            .fire
-            (\newFire model ->
-                { model | fire = newFire }
+            .firing
+            (\newFiring model ->
+                { model | firing = newFiring }
             )
 
 
@@ -118,7 +118,8 @@ init flags =
       , clickedCell = Nothing
       , focusedBoat = Nothing
       , focusedUp = Animator.init False
-      , fire = Animator.init False
+      , firing = Animator.init False
+      , firingCell = Nothing
       }
     , Cmd.batch
         [ GenLevel.randomizeBoatPlacements Player <| GenLevel.createBoatStartCouples 0 0 9 9
@@ -267,6 +268,23 @@ viewMyBoard model =
         List.concat [ [ drawGrid grid [] ], svgBoats ]
 
 
+isHit board coord =
+    getBoatByCell coord board /= Nothing
+
+
+viewShot board coord =
+    if isHit board coord then
+        Figures.drawHit board.grid coord
+
+    else
+        Figures.drawMiss board.grid coord
+
+
+viewShots board =
+    board.shots
+        |> List.map (viewShot board)
+
+
 viewCpuBoard model =
     let
         board =
@@ -275,23 +293,31 @@ viewCpuBoard model =
         grid =
             board.grid
 
-        a =
-            Animator.linear model.fire <|
-                \state ->
-                    if state then
-                        Animator.at 1
-
-                    else
-                        Animator.at 0
-
         cellOverSvg =
-            case board.cellOver of
+            let
+                maybeCoord =
+                    case model.firingCell of
+                        Just firingCoord ->
+                            Just firingCoord
+
+                        Nothing ->
+                            board.cellOver
+
+                fireAmount =
+                    Animator.linear model.firing <|
+                        \state ->
+                            if state then
+                                Animator.at 1
+
+                            else
+                                Animator.at 0
+            in
+            case maybeCoord of
                 Just coord ->
                     [ Figures.drawTarget
                         grid
-                        Color.gray
                         coord
-                        a
+                        fireAmount
                     ]
 
                 _ ->
@@ -307,7 +333,7 @@ viewCpuBoard model =
         , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], cellOverSvg ]
+        List.concat [ [ drawGrid grid [] ], viewShots model.cpuBoard, cellOverSvg ]
 
 
 viewBoards model =
@@ -439,9 +465,9 @@ isCellBelongToBoat cell boat =
         |> List.any (\boatCell -> boatCell == cell)
 
 
-getBoatByCell : GridCoord -> Model -> Maybe Boat
-getBoatByCell cell model =
-    case Dict.Extra.find (\_ boat -> isCellBelongToBoat cell boat) model.myBoard.boats of
+getBoatByCell : GridCoord -> Board -> Maybe Boat
+getBoatByCell cell board =
+    case Dict.Extra.find (\_ boat -> isCellBelongToBoat cell boat) board.boats of
         Just ( id, boat ) ->
             Just boat
 
@@ -466,17 +492,22 @@ mouseDownMyBoard event model =
             Grid.getClosestCell model.currentMousePos model.myBoard.grid
 
         maybeBoat =
-            getBoatByCell cell model
+            getBoatByCell cell model.myBoard
     in
     { model | clickedBoat = maybeBoat, clickedCell = Just cell }
 
 
 mouseDownCpuBoard : Mouse.Event -> Model -> Model
 mouseDownCpuBoard event model =
+    let
+        cell =
+            Grid.getClosestCell model.currentMousePos model.cpuBoard.grid
+    in
     { model
-        | fire =
-            model.fire
-                |> Animator.go (Animator.millis 2000) (not <| Animator.current model.fire)
+        | firing =
+            model.firing
+                |> Animator.go (Animator.millis 1000) (not <| Animator.current model.firing)
+        , firingCell = Just cell
     }
 
 
@@ -497,11 +528,17 @@ mouseDown boardId event model =
 
 mouseUpCpu : Mouse.Event -> Model -> Model
 mouseUpCpu event model =
-    { model
-        | fire =
-            model.fire
-                |> Animator.go (Animator.millis 2000) (not <| Animator.current model.fire)
-    }
+    case Animator.current model.firing of
+        False ->
+            model
+
+        _ ->
+            { model
+                | firing =
+                    model.firing
+                        |> Animator.go (Animator.millis 1000) (not <| Animator.current model.firing)
+                , firingCell = Nothing
+            }
 
 
 mouseUp : String -> Mouse.Event -> Model -> Model
@@ -524,10 +561,27 @@ pieceOut boatId model =
     { model | focusedBoat = Nothing }
 
 
+fire : Model -> Model
+fire model =
+    let
+        board =
+            model.cpuBoard
+
+        newBoard =
+            case model.firingCell of
+                Just coord ->
+                    { board | shots = coord :: board.shots }
+
+                _ ->
+                    board
+    in
+    { model | cpuBoard = newBoard }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        -- case Debug.log "msg" msg of
+        --case Debug.log "msg" msg of
         GetCoordAndDirection turn ( pos, dir ) ->
             iterPlacement turn pos dir model
 
@@ -570,10 +624,19 @@ update msg model =
             )
 
         Tick newTime ->
-            ( model
-                |> Animator.update newTime animator
-            , Cmd.none
-            )
+            let
+                animModel =
+                    model
+                        |> Animator.update newTime animator
+
+                newModel =
+                    if Animator.previous animModel.firing && not (Animator.previous model.firing) then
+                        fire animModel
+
+                    else
+                        animModel
+            in
+            ( newModel, Cmd.none )
 
 
 port requestSvgMousePos : ( String, Int, Int ) -> Cmd msg
