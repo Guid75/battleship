@@ -543,18 +543,92 @@ iterPlacement turn pos dir model =
 
 mouseMoveOnMyBoard : ( Float, Float ) -> Model -> Model
 mouseMoveOnMyBoard ( x, y ) model =
-    let
-        board =
-            model.myBoard
-
-        currentCell =
-            Grid.getClosestCell { x = x, y = y } board.grid
-    in
     case ( model.clickedBoat, model.clickedCell ) of
         ( Just boat, Just clickedCell ) ->
             let
+                board =
+                    model.myBoard
+
+                grid =
+                    board.grid
+
+                boatBoundingBox =
+                    Figures.computeGridSizeByDirection boat
+
+                currentCell =
+                    Grid.getClosestCell { x = x, y = y } grid
+
+                rectifyPos oldBoat =
+                    let
+                        row =
+                            case oldBoat.dir of
+                                North ->
+                                    if oldBoat.pos.row - oldBoat.size < 0 then
+                                        oldBoat.size - 1
+
+                                    else if oldBoat.pos.row >= grid.rowCount then
+                                        grid.rowCount - 1
+
+                                    else
+                                        oldBoat.pos.row
+
+                                South ->
+                                    if oldBoat.pos.row < 0 then
+                                        0
+
+                                    else if oldBoat.pos.row + oldBoat.size >= grid.rowCount then
+                                        grid.rowCount - oldBoat.size
+
+                                    else
+                                        oldBoat.pos.row
+
+                                East ->
+                                    oldBoat.pos.row
+
+                                West ->
+                                    oldBoat.pos.row
+
+                        col =
+                            case oldBoat.dir of
+                                West ->
+                                    if oldBoat.pos.col - oldBoat.size < 0 then
+                                        oldBoat.size - 1
+
+                                    else if oldBoat.pos.col >= grid.colCount then
+                                        grid.colCount - 1
+
+                                    else
+                                        oldBoat.pos.col
+
+                                East ->
+                                    if oldBoat.pos.col < 0 then
+                                        0
+
+                                    else if oldBoat.pos.col + oldBoat.size >= grid.colCount then
+                                        grid.colCount - oldBoat.size
+
+                                    else
+                                        oldBoat.pos.col
+
+                                North ->
+                                    oldBoat.pos.col
+
+                                South ->
+                                    oldBoat.pos.col
+
+                        newPos =
+                            { row = row, col = col }
+                    in
+                    { boat | pos = newPos }
+
                 newBoat =
-                    { boat | pos = { col = boat.pos.col + currentCell.col - clickedCell.col, row = boat.pos.row + currentCell.row - clickedCell.row } }
+                    { boat
+                        | pos =
+                            { col = boat.pos.col + currentCell.col - clickedCell.col
+                            , row = boat.pos.row + currentCell.row - clickedCell.row
+                            }
+                    }
+                        |> rectifyPos
 
                 newBoards =
                     { board | boats = Dict.insert boat.id newBoat board.boats }

@@ -10,6 +10,7 @@ module Types exposing
     , GridSize
     , Model
     , Msg(..)
+    , Rect
     , Turn(..)
     )
 
@@ -106,6 +107,12 @@ type alias GridSize =
 type alias FloatCoord =
     { x : Float
     , y : Float
+    }
+
+
+type alias Rect =
+    { topLeft : GridCoord
+    , bottomRight : GridCoord
     }
 
 

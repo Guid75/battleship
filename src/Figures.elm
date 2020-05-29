@@ -1,5 +1,6 @@
 module Figures exposing
-    ( drawBoat
+    ( computeGridSizeByDirection
+    , drawBoat
     , drawBoatFloating
     , drawBoatPlacement
     , drawHit
@@ -76,8 +77,8 @@ drawHit grid { col, row } =
         []
 
 
-computeGridSizeByDirection : Direction -> Int -> GridSize
-computeGridSizeByDirection dir size =
+computeGridSizeByDirection : Boat -> GridSize
+computeGridSizeByDirection { dir, size } =
     case dir of
         South ->
             { width = 1, height = size }
@@ -137,7 +138,7 @@ drawBoat boat grid attrs =
             Grid.getCellCoord topLeft.col topLeft.row grid
 
         size =
-            computeGridSizeByDirection boat.dir boat.size
+            computeGridSizeByDirection boat
 
         bottomRight =
             Grid.getCellCoord (topLeft.col + size.width - 1) (topLeft.row + size.height - 1) grid
@@ -178,7 +179,7 @@ drawBoatFloating : Boat -> Grid -> FloatCoord -> Svg Msg
 drawBoatFloating boat grid topLeftCellCoord =
     let
         size =
-            computeGridSizeByDirection boat.dir boat.size
+            computeGridSizeByDirection boat
 
         fakeTopLeftCellCoord =
             Grid.getCellCoord 0 0 grid
@@ -229,7 +230,7 @@ drawBoatPlacement boat grid =
             computeTopLeftPosition boat
 
         size =
-            computeGridSizeByDirection boat.dir boat.size
+            computeGridSizeByDirection boat
 
         topLeftCellCoord =
             Grid.getCellCoord topLeft.col topLeft.row grid
