@@ -22,7 +22,7 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
 import Time
-import Types exposing (Board, Boat, BoatDef, CellType(..), Direction(..), Grid, GridCoord, Model, Msg(..), Turn(..))
+import Types exposing (Board, Boat, BoatDef, CellType(..), Direction(..), Grid, GridCoord, GridSize, Model, Msg(..), Turn(..))
 
 
 animator : Animator.Animator Model
@@ -116,6 +116,7 @@ init flags =
       , currentMousePos = { x = 0, y = 0 }
       , clickedBoat = Nothing
       , clickedCell = Nothing
+      , clickedPos = { x = 0, y = 0 }
       , focusedBoat = Nothing
       , focusedUp = Animator.init False
       , firing = Animator.init False
@@ -176,6 +177,39 @@ sizeToColor size =
 
 
 boatToSvg grid boat focusedBoat model =
+    case model.clickedBoat of
+        Just clickedBoat ->
+            if clickedBoat.id == boat.id then
+                clickedBoatToSvg grid boat
+
+            else
+                regularBoatToSvg grid boat focusedBoat model
+
+        Nothing ->
+            regularBoatToSvg grid boat focusedBoat model
+
+
+clickedBoatToSvg grid boat =
+    Figures.drawBoatPlacement boat grid
+
+
+computeGridSizeByDirection : Direction -> Int -> GridSize
+computeGridSizeByDirection dir size =
+    case dir of
+        South ->
+            { width = 1, height = size }
+
+        East ->
+            { width = size, height = 1 }
+
+        North ->
+            { width = 1, height = size }
+
+        West ->
+            { width = size, height = 1 }
+
+
+regularBoatToSvg grid boat focusedBoat model =
     let
         id =
             boat.id
@@ -224,24 +258,40 @@ boatToSvg grid boat focusedBoat model =
             else
                 []
     in
-    case boat.dir of
-        South ->
-            Figures.drawShip attrs grid id color 2 boat.pos { width = 1, height = boat.size }
-
-        East ->
-            Figures.drawShip attrs grid id color 2 boat.pos { width = boat.size, height = 1 }
-
-        North ->
-            Figures.drawShip attrs grid id color 2 { col = boat.pos.col, row = boat.pos.row - boat.size + 1 } { width = 1, height = boat.size }
-
-        West ->
-            Figures.drawShip attrs grid id color 2 { col = boat.pos.col - boat.size + 1, row = boat.pos.row } { width = boat.size, height = 1 }
+    Figures.drawBoat boat grid attrs
 
 
 generateBoatsSvg grid boats focusedBoat model =
     boats
         |> Dict.values
+        |> List.filter
+            (\myBoat ->
+                case model.clickedBoat of
+                    Nothing ->
+                        True
+
+                    Just boat ->
+                        (boat.id /= myBoat.id) || isBoatAllowedToBeThere model.myBoard myBoat
+            )
         |> List.map (\boat -> boatToSvg grid boat focusedBoat model)
+
+
+generatePhantomBoat grid board model =
+    case model.clickedBoat of
+        Just clickedBoat ->
+            let
+                originBoatTopLeft =
+                    getGridTopLeftCoord clickedBoat board.grid
+
+                floatingTopLeft =
+                    { x = originBoatTopLeft.x - (model.clickedPos.x - model.currentMousePos.x)
+                    , y = originBoatTopLeft.y - (model.clickedPos.y - model.currentMousePos.y)
+                    }
+            in
+            [ Figures.drawBoatFloating clickedBoat board.grid floatingTopLeft ]
+
+        Nothing ->
+            []
 
 
 viewMyBoard model =
@@ -254,6 +304,9 @@ viewMyBoard model =
 
         svgBoats =
             generateBoatsSvg grid board.boats model.focusedBoat model
+
+        phantomBoat =
+            generatePhantomBoat grid board model
     in
     svg
         [ id board.id
@@ -265,7 +318,7 @@ viewMyBoard model =
         , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], svgBoats ]
+        List.concat [ [ drawGrid grid [] ], svgBoats, phantomBoat ]
 
 
 isHit board coord =
@@ -377,6 +430,62 @@ view model =
             , Element.html <| button [ Html.Events.onClick <| Generate Player ] [ Html.text "Generate for myself" ]
             , Element.html <| button [ Html.Events.onClick <| Generate CPU ] [ Html.text "Generate for CPU" ]
             ]
+
+
+buildForbiddenCellsMatrix : Board -> Boat -> Matrix Bool
+buildForbiddenCellsMatrix board myBoat =
+    let
+        forbiddenMatrix =
+            Matrix.repeat 10 10 False
+
+        addSurroundingCells : GridCoord -> List GridCoord -> List GridCoord
+        addSurroundingCells cell cells =
+            List.concat
+                [ cells
+                , [ { col = cell.col - 1, row = cell.row - 1 }
+                  , { col = cell.col, row = cell.row - 1 }
+                  , { col = cell.col + 1, row = cell.row - 1 }
+                  , { col = cell.col - 1, row = cell.row }
+                  , { col = cell.col + 1, row = cell.row }
+                  , { col = cell.col - 1, row = cell.row + 1 }
+                  , { col = cell.col, row = cell.row + 1 }
+                  , { col = cell.col + 1, row = cell.row + 1 }
+                  ]
+                ]
+
+        addAllSurroundedCells : List GridCoord -> List GridCoord
+        addAllSurroundedCells cells =
+            let
+                surroundingCells =
+                    List.foldl addSurroundingCells [] cells
+            in
+            List.concat [ cells, surroundingCells ]
+
+        fillMatrixWithForbiddenCells boat matrix =
+            GenLevel.computeBoatCellPositions boat
+                |> addAllSurroundedCells
+                |> List.foldl (\coord matrix_ -> Matrix.set coord.col coord.row True matrix_) matrix
+    in
+    board.boats
+        |> Dict.values
+        |> List.filter (\boat -> boat /= myBoat)
+        |> List.foldl fillMatrixWithForbiddenCells forbiddenMatrix
+
+
+isBoatAllowedToBeThere : Board -> Boat -> Bool
+isBoatAllowedToBeThere board boat =
+    let
+        forbiddenMatrix =
+            buildForbiddenCellsMatrix board boat
+
+        boatCells =
+            GenLevel.computeBoatCellPositions boat
+
+        collidingCells =
+            GenLevel.computeBoatCellPositions boat
+                |> List.filter (\coord -> Matrix.get coord.col coord.row forbiddenMatrix == Ok True)
+    in
+    List.length collidingCells == 0
 
 
 iterPlacement : Turn -> GridCoord -> Direction -> Model -> ( Model, Cmd Msg )
@@ -508,6 +617,25 @@ getBoatById id_ model =
             Nothing
 
 
+getGridTopLeftCoord boat grid =
+    let
+        topLeft =
+            case boat.dir of
+                South ->
+                    boat.pos
+
+                East ->
+                    boat.pos
+
+                North ->
+                    { col = boat.pos.col, row = boat.pos.row - boat.size + 1 }
+
+                West ->
+                    { col = boat.pos.col - boat.size + 1, row = boat.pos.row }
+    in
+    Grid.getCellCoord topLeft.col topLeft.row grid
+
+
 mouseDownMyBoard : Mouse.Event -> Model -> Model
 mouseDownMyBoard event model =
     let
@@ -517,7 +645,11 @@ mouseDownMyBoard event model =
         maybeBoat =
             getBoatByCell cell model.myBoard
     in
-    { model | clickedBoat = maybeBoat, clickedCell = Just cell }
+    { model
+        | clickedBoat = maybeBoat
+        , clickedCell = Just cell
+        , clickedPos = model.currentMousePos
+    }
 
 
 mouseDownCpuBoard : Mouse.Event -> Model -> Model
@@ -604,7 +736,7 @@ fire model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        --case Debug.log "msg" msg of
+        -- case Debug.log "msg" msg of
         GetCoordAndDirection turn ( pos, dir ) ->
             iterPlacement turn pos dir model
 

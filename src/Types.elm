@@ -43,6 +43,7 @@ type alias Model =
     , currentMousePos : FloatCoord
     , clickedBoat : Maybe Boat
     , clickedCell : Maybe GridCoord
+    , clickedPos : FloatCoord
     , focusedBoat : Maybe Boat
     , focusedUp : Animator.Timeline Bool
     , firing : Animator.Timeline Bool
