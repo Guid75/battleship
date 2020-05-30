@@ -428,13 +428,12 @@ view model =
         column
             []
             [ viewBoards model
-            , Element.html <| button [ Html.Events.onClick <| Generate Player ] [ Html.text "Generate for myself" ]
-            , Element.html <| button [ Html.Events.onClick <| Generate CPU ] [ Html.text "Generate for CPU" ]
+            , Element.html <| button [ Html.Events.onClick <| Generate Player ] [ Html.text "New random draw" ]
             ]
 
 
 buildForbiddenCellsMatrix : Board -> Boat -> Matrix Bool
-buildForbiddenCellsMatrix board myBoat =
+buildForbiddenCellsMatrix board exceptBoat =
     let
         forbiddenMatrix =
             Matrix.repeat 10 10 False
@@ -469,7 +468,7 @@ buildForbiddenCellsMatrix board myBoat =
     in
     board.boats
         |> Dict.values
-        |> List.filter (\boat -> boat /= myBoat)
+        |> List.filter (\boat -> boat.id /= exceptBoat.id)
         |> List.foldl fillMatrixWithForbiddenCells forbiddenMatrix
 
 
@@ -483,10 +482,24 @@ isBoatAllowedToBeThere board boat =
             GenLevel.computeBoatCellPositions boat
 
         collidingCells =
-            GenLevel.computeBoatCellPositions boat
+            boatCells
                 |> List.filter (\coord -> Matrix.get coord.col coord.row forbiddenMatrix == Ok True)
+
+        outOfScreenCells =
+            boatCells
+                |> List.filter
+                    (\coord ->
+                        coord.col
+                            < 0
+                            || coord.col
+                            >= board.grid.colCount
+                            || coord.row
+                            < 0
+                            || coord.row
+                            >= board.grid.rowCount
+                    )
     in
-    List.length collidingCells == 0
+    List.length collidingCells == 0 && List.length outOfScreenCells == 0
 
 
 iterPlacement : Turn -> GridCoord -> Direction -> Model -> ( Model, Cmd Msg )
@@ -783,6 +796,115 @@ cancelMoveIfNeeded model =
             model
 
 
+rotateBoat90 : Boat -> Boat
+rotateBoat90 boat =
+    case boat.dir of
+        North ->
+            { boat | dir = East }
+
+        East ->
+            { boat | dir = South }
+
+        South ->
+            { boat | dir = West }
+
+        West ->
+            { boat | dir = North }
+
+
+reverseDirBoat : Boat -> Boat
+reverseDirBoat boat =
+    case boat.dir of
+        North ->
+            { boat
+                | dir = South
+                , pos =
+                    { col = boat.pos.col
+                    , row = boat.pos.row - boat.size + 1
+                    }
+            }
+
+        East ->
+            { boat
+                | dir = West
+                , pos =
+                    { col = boat.pos.col + boat.size - 1
+                    , row = boat.pos.row
+                    }
+            }
+
+        South ->
+            { boat
+                | dir = North
+                , pos =
+                    { col = boat.pos.col
+                    , row = boat.pos.row + boat.size - 1
+                    }
+            }
+
+        West ->
+            { boat
+                | dir = East
+                , pos =
+                    { col = boat.pos.col - boat.size + 1
+                    , row = boat.pos.row
+                    }
+            }
+
+
+rotationStuff : Model -> Model
+rotationStuff model =
+    let
+        cell =
+            Grid.getClosestCell model.currentMousePos model.myBoard.grid
+    in
+    if not model.draggingBoat && Just cell == model.clickedCell then
+        case model.clickedBoat of
+            Just clickedBoat ->
+                let
+                    boat90 =
+                        clickedBoat |> rotateBoat90
+
+                    boat270 =
+                        boat90 |> rotateBoat90 |> rotateBoat90
+
+                    reverse90 =
+                        clickedBoat |> reverseDirBoat |> rotateBoat90
+
+                    reverse270 =
+                        reverse90 |> rotateBoat90 |> rotateBoat90
+
+                    newBoat =
+                        if isBoatAllowedToBeThere board boat90 then
+                            boat90
+
+                        else if isBoatAllowedToBeThere board boat270 then
+                            boat270
+
+                        else if isBoatAllowedToBeThere board reverse90 then
+                            reverse90
+
+                        else if isBoatAllowedToBeThere board reverse270 then
+                            reverse270
+
+                        else
+                            clickedBoat
+
+                    board =
+                        model.myBoard
+
+                    newBoard =
+                        { board | boats = Dict.insert newBoat.id newBoat board.boats }
+                in
+                { model | myBoard = newBoard }
+
+            Nothing ->
+                model
+
+    else
+        model
+
+
 cleanupMoveModelItems : Model -> Model
 cleanupMoveModelItems model =
     { model
@@ -796,6 +918,7 @@ mouseUpMyBoard : Model -> Model
 mouseUpMyBoard model =
     model
         |> cancelMoveIfNeeded
+        |> rotationStuff
         |> cleanupMoveModelItems
 
 
