@@ -205,21 +205,18 @@ drawBoatFloating boat grid topLeftCellCoord =
 
         color =
             sizeToColor boat.size
-
-        innerAttrs =
-            [ id boat.id
-            , rx "10.0"
-            , ry "10.0"
-            , x <| String.fromFloat <| topLeftCellCoord.x + padding
-            , y <| String.fromFloat <| topLeftCellCoord.y + padding
-            , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x - padding * 2.0
-            , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y - padding * 2.0
-            , fill <| Color.toCssString color
-            , stroke "gray"
-            ]
     in
     rect
-        innerAttrs
+        [ id boat.id
+        , rx "10.0"
+        , ry "10.0"
+        , x <| String.fromFloat <| topLeftCellCoord.x + padding
+        , y <| String.fromFloat <| topLeftCellCoord.y + padding
+        , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x - padding * 2.0
+        , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y - padding * 2.0
+        , fill <| Color.toCssString color
+        , stroke "gray"
+        ]
         []
 
 
@@ -240,19 +237,14 @@ drawBoatPlacement boat grid =
 
         bottomRightCoord =
             { x = bottomRight.x + grid.cellSize, y = bottomRight.y + grid.cellSize }
-
-        innerAttrs =
-            [ x <| String.fromFloat <| topLeftCellCoord.x
-            , y <| String.fromFloat <| topLeftCellCoord.y
-            , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x
-            , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y
-            , fill <| Color.toCssString <| Color.rgba 0.5 0.5 1 0.2
-            , stroke <| Color.toCssString <| Color.rgb255 50 50 255
-            ]
     in
     rect
-        (List.concat
-            [ innerAttrs
-            ]
-        )
+        [ x <| String.fromFloat <| topLeftCellCoord.x
+        , y <| String.fromFloat <| topLeftCellCoord.y
+        , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x
+        , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y
+        , fill <| Color.toCssString <| Color.rgba 0.5 1 0.5 0.2
+        , stroke <| Color.toCssString <| Color.rgb255 0 125 0
+        , strokeWidth "2.0"
+        ]
         []
