@@ -681,9 +681,9 @@ getBoatByCell cell board =
             Nothing
 
 
-getBoatById : String -> Model -> Maybe Boat
-getBoatById id_ model =
-    case Dict.Extra.find (\_ boat -> boat.id == id_) model.myBoard.boats of
+getBoatById : String -> Board -> Maybe Boat
+getBoatById id_ board =
+    case Dict.Extra.find (\_ boat -> boat.id == id_) board.boats of
         Just ( id, boat ) ->
             Just boat
 
@@ -742,7 +742,28 @@ mouseDownCpuBoard event model =
 
 mouseUpMyBoard : Mouse.Event -> Model -> Model
 mouseUpMyBoard event model =
-    model
+    case model.clickedBoat of
+        Just clickedBoat ->
+            case getBoatById clickedBoat.id model.myBoard of
+                Just movedBoat ->
+                    if isBoatAllowedToBeThere model.myBoard movedBoat then
+                        model
+
+                    else
+                        let
+                            board =
+                                model.myBoard
+
+                            newBoard =
+                                { board | boats = Dict.insert movedBoat.id clickedBoat board.boats }
+                        in
+                        { model | myBoard = newBoard }
+
+                Nothing ->
+                    model
+
+        Nothing ->
+            model
 
 
 mouseDown : String -> Mouse.Event -> Model -> Model
@@ -774,7 +795,11 @@ mouseUp : String -> Mouse.Event -> Model -> Model
 mouseUp boardId event model =
     case boardId of
         "myBoard" ->
-            { model | clickedBoat = Nothing, clickedCell = Nothing }
+            let
+                newModel =
+                    mouseUpMyBoard event model
+            in
+            { newModel | clickedBoat = Nothing, clickedCell = Nothing }
 
         _ ->
             mouseUpCpu event model
@@ -782,7 +807,7 @@ mouseUp boardId event model =
 
 pieceOver : String -> Model -> Model
 pieceOver boatId model =
-    { model | focusedBoat = getBoatById boatId model }
+    { model | focusedBoat = getBoatById boatId model.myBoard }
 
 
 pieceOut : String -> Model -> Model
