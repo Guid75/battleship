@@ -812,6 +812,26 @@ rotateBoat90 boat =
             { boat | dir = North }
 
 
+centralRotation : Boat -> Boat
+centralRotation boat =
+    let
+        halfSize =
+            boat.size // 2
+    in
+    case boat.dir of
+        North ->
+            { boat | dir = East, pos = { col = boat.pos.col - halfSize, row = boat.pos.row - halfSize } }
+
+        East ->
+            { boat | dir = South, pos = { col = boat.pos.col + halfSize, row = boat.pos.row - halfSize } }
+
+        South ->
+            { boat | dir = West, pos = { col = boat.pos.col + halfSize, row = boat.pos.row + halfSize } }
+
+        West ->
+            { boat | dir = North, pos = { col = boat.pos.col - halfSize, row = boat.pos.row + halfSize } }
+
+
 reverseDirBoat : Boat -> Boat
 reverseDirBoat boat =
     case boat.dir of
@@ -874,6 +894,9 @@ rotationStuff model =
                     reverse270 =
                         reverse90 |> rotateBoat90 |> rotateBoat90
 
+                    central =
+                        clickedBoat |> centralRotation
+
                     newBoat =
                         if isBoatAllowedToBeThere board boat90 then
                             boat90
@@ -886,6 +909,9 @@ rotationStuff model =
 
                         else if isBoatAllowedToBeThere board reverse270 then
                             reverse270
+
+                        else if isBoatAllowedToBeThere board central then
+                            central
 
                         else
                             clickedBoat
