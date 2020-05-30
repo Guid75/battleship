@@ -204,7 +204,14 @@ drawBoatFloating boat grid topLeftCellCoord =
             2.0
 
         color =
-            sizeToColor boat.size
+            let
+                rgba =
+                    Color.toRgba <| sizeToColor boat.size
+
+                withAlpha =
+                    { rgba | alpha = 0.7 }
+            in
+            Color.fromRgba withAlpha
     in
     rect
         [ id boat.id

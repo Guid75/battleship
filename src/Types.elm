@@ -49,6 +49,7 @@ type alias Model =
     , focusedUp : Animator.Timeline Bool
     , firing : Animator.Timeline Bool
     , firingCell : Maybe GridCoord
+    , draggingBoat : Bool
     }
 
 

@@ -22,7 +22,7 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
 import Time
-import Types exposing (Board, Boat, BoatDef, CellType(..), Direction(..), Grid, GridCoord, GridSize, Model, Msg(..), Turn(..))
+import Types exposing (Board, Boat, BoatDef, CellType(..), Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Turn(..))
 
 
 animator : Animator.Animator Model
@@ -117,6 +117,7 @@ init flags =
       , clickedBoat = Nothing
       , clickedCell = Nothing
       , clickedPos = { x = 0, y = 0 }
+      , draggingBoat = False
       , focusedBoat = Nothing
       , focusedUp = Animator.init False
       , firing = Animator.init False
@@ -177,15 +178,15 @@ sizeToColor size =
 
 
 boatToSvg grid boat focusedBoat model =
-    case model.clickedBoat of
-        Just clickedBoat ->
+    case ( model.clickedBoat, model.draggingBoat ) of
+        ( Just clickedBoat, True ) ->
             if clickedBoat.id == boat.id then
                 clickedBoatToSvg grid boat
 
             else
                 regularBoatToSvg grid boat focusedBoat model
 
-        Nothing ->
+        _ ->
             regularBoatToSvg grid boat focusedBoat model
 
 
@@ -277,8 +278,8 @@ generateBoatsSvg grid boats focusedBoat model =
 
 
 generatePhantomBoat grid board model =
-    case model.clickedBoat of
-        Just clickedBoat ->
+    case ( model.clickedBoat, model.draggingBoat ) of
+        ( Just clickedBoat, True ) ->
             let
                 originBoatTopLeft =
                     getGridTopLeftCoord clickedBoat board.grid
@@ -290,7 +291,7 @@ generatePhantomBoat grid board model =
             in
             [ Figures.drawBoatFloating clickedBoat board.grid floatingTopLeft ]
 
-        Nothing ->
+        _ ->
             []
 
 
@@ -543,8 +544,8 @@ iterPlacement turn pos dir model =
 
 mouseMoveOnMyBoard : ( Float, Float ) -> Model -> Model
 mouseMoveOnMyBoard ( x, y ) model =
-    case ( model.clickedBoat, model.clickedCell ) of
-        ( Just boat, Just clickedCell ) ->
+    case ( model.clickedBoat, model.clickedCell, model.draggingBoat ) of
+        ( Just boat, Just clickedCell, True ) ->
             let
                 board =
                     model.myBoard
@@ -636,7 +637,23 @@ mouseMoveOnMyBoard ( x, y ) model =
             { model | myBoard = newBoards }
 
         _ ->
-            model
+            if (model.clickedCell /= Nothing) && tearoffDrag { x = x, y = y } model.clickedPos then
+                { model | draggingBoat = True }
+
+            else
+                model
+
+
+tearoffDrag : FloatCoord -> FloatCoord -> Bool
+tearoffDrag coord1 coord2 =
+    let
+        p1 =
+            coord1.x - coord2.x
+
+        p2 =
+            coord1.y - coord2.y
+    in
+    sqrt (p1 * p1 + p2 * p2) > 5.0
 
 
 mouseMoveOnCPUBoard : ( Float, Float ) -> Model -> Model
@@ -740,8 +757,8 @@ mouseDownCpuBoard event model =
     }
 
 
-mouseUpMyBoard : Mouse.Event -> Model -> Model
-mouseUpMyBoard event model =
+cancelMoveIfNeeded : Model -> Model
+cancelMoveIfNeeded model =
     case model.clickedBoat of
         Just clickedBoat ->
             case getBoatById clickedBoat.id model.myBoard of
@@ -764,6 +781,22 @@ mouseUpMyBoard event model =
 
         Nothing ->
             model
+
+
+cleanupMoveModelItems : Model -> Model
+cleanupMoveModelItems model =
+    { model
+        | clickedBoat = Nothing
+        , clickedCell = Nothing
+        , draggingBoat = False
+    }
+
+
+mouseUpMyBoard : Model -> Model
+mouseUpMyBoard model =
+    model
+        |> cancelMoveIfNeeded
+        |> cleanupMoveModelItems
 
 
 mouseDown : String -> Mouse.Event -> Model -> Model
@@ -795,11 +828,7 @@ mouseUp : String -> Mouse.Event -> Model -> Model
 mouseUp boardId event model =
     case boardId of
         "myBoard" ->
-            let
-                newModel =
-                    mouseUpMyBoard event model
-            in
-            { newModel | clickedBoat = Nothing, clickedCell = Nothing }
+            mouseUpMyBoard model
 
         _ ->
             mouseUpCpu event model
