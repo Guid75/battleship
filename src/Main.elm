@@ -105,7 +105,7 @@ init flags =
             , ships = Dict.empty
             , shots = []
             , cellOver = Nothing
-            , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#000000"
+            , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#A0A0A0"
             , id = "myBoard"
             }
       , cpuBoard =
@@ -114,7 +114,7 @@ init flags =
             , ships = Dict.empty
             , shots = []
             , cellOver = Nothing
-            , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#000000"
+            , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#A0A0A0"
             , id = "cpuBoard"
             }
       , currentMousePos = { x = 0, y = 0 }
@@ -356,8 +356,8 @@ viewCpuBoard model =
                             else
                                 Animator.at 0
             in
-            case maybeCoord of
-                Just coord ->
+            case ( maybeCoord, model.state ) of
+                ( Just coord, Playing Player ) ->
                     [ Figures.drawTarget
                         grid
                         coord
@@ -441,27 +441,28 @@ viewInformationMessage model =
 
 viewControlBar : Model -> Element Msg
 viewControlBar model =
-    row
-        [ centerX, Element.spacing 6 ]
-        [ Input.button
-            [ Background.color <| Element.rgb 0.9 0.9 1
-            , padding 4
-            , Border.solid
-            , Border.width 1
-            ]
-            { label = Element.text "New random draw", onPress = Just <| Generate Player }
-        , Input.button
-            [ Background.color <| Element.rgb 1 0.9 0.9
-            , padding 4
-            , Border.solid
-            , Border.width 1
-            ]
-            { label = Element.text "Let's play", onPress = Just <| Launch }
-        ]
+    case model.state of
+        Preparing ->
+            row
+                [ centerX, Element.spacing 6 ]
+                [ Input.button
+                    [ Background.color <| Element.rgb 0.9 0.9 1
+                    , padding 4
+                    , Border.solid
+                    , Border.width 1
+                    ]
+                    { label = Element.text "New random draw", onPress = Just <| Generate Player }
+                , Input.button
+                    [ Background.color <| Element.rgb 1 0.9 0.9
+                    , padding 4
+                    , Border.solid
+                    , Border.width 1
+                    ]
+                    { label = Element.text "Let's play", onPress = Just <| Launch }
+                ]
 
-
-
---    Element.html <| button [ Html.Events.onClick <| Generate Player ] [ Html.text "New random draw" ]
+        _ ->
+            Element.text ""
 
 
 view model =
