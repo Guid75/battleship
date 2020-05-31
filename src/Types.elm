@@ -66,6 +66,7 @@ type Msg
     | Generate Turn
     | PieceOver String
     | PieceOut String
+    | Launch
     | MouseMove String Mouse.Event
     | MouseDown String Mouse.Event
     | MouseUp String Mouse.Event

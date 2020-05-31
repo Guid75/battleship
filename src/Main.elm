@@ -9,7 +9,9 @@ import Dict exposing (Dict)
 import Dict.Extra
 import Element exposing (Element, alignRight, centerX, centerY, column, el, fill, padding, px, rgb, rgb255, row, spacing, text, width)
 import Element.Background as Background
+import Element.Border as Border
 import Element.Font as Font
+import Element.Input as Input
 import Figures
 import GenLevel
 import Grid exposing (drawGrid)
@@ -411,6 +413,7 @@ viewBoards model =
         ]
 
 
+viewInformationMessage : Model -> Element Msg
 viewInformationMessage model =
     let
         message =
@@ -436,15 +439,40 @@ viewInformationMessage model =
             Element.text message
 
 
+viewControlBar : Model -> Element Msg
+viewControlBar model =
+    row
+        [ centerX, Element.spacing 6 ]
+        [ Input.button
+            [ Background.color <| Element.rgb 0.9 0.9 1
+            , padding 4
+            , Border.solid
+            , Border.width 1
+            ]
+            { label = Element.text "New random draw", onPress = Just <| Generate Player }
+        , Input.button
+            [ Background.color <| Element.rgb 1 0.9 0.9
+            , padding 4
+            , Border.solid
+            , Border.width 1
+            ]
+            { label = Element.text "Let's play", onPress = Just <| Launch }
+        ]
+
+
+
+--    Element.html <| button [ Html.Events.onClick <| Generate Player ] [ Html.text "New random draw" ]
+
+
 view model =
     Element.layout
         []
     <|
         column
-            []
+            [ Element.spacing 10, centerX ]
             [ viewBoards model
+            , viewControlBar model
             , viewInformationMessage model
-            , Element.html <| button [ Html.Events.onClick <| Generate Player ] [ Html.text "New random draw" ]
             ]
 
 
@@ -1049,6 +1077,9 @@ update msg model =
                     initModel model turn
             in
             ( newModel, GenLevel.randomizeShipPlacements turn <| GenLevel.createShipStartCouples 0 0 9 9 )
+
+        Launch ->
+            ( { model | state = Playing Player }, Cmd.none )
 
         PieceOver shipId ->
             ( pieceOver shipId model, Cmd.none )
