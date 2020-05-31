@@ -4,6 +4,7 @@ module GenLevel exposing
     , createShipStartCouples
     , randomizeShipPlacements
     , tryToPlace
+    , writeShip
     )
 
 import Array

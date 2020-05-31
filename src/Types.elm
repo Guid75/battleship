@@ -1,6 +1,7 @@
 module Types exposing
     ( Board
     , CellType(..)
+    , CpuFireEngine
     , Direction(..)
     , FloatCoord
     , Grid
@@ -45,6 +46,11 @@ type alias Board =
     }
 
 
+type alias CpuFireEngine =
+    { lastSuccesses : List GridCoord
+    }
+
+
 type alias Model =
     { myBoard : Board
     , cpuBoard : Board
@@ -58,6 +64,7 @@ type alias Model =
     , firingCell : Maybe GridCoord
     , draggingShip : Bool
     , state : State
+    , cpuFireEngine : CpuFireEngine
     }
 
 
@@ -71,6 +78,7 @@ type Msg
     | MouseDown String Mouse.Event
     | MouseUp String Mouse.Event
     | SvgMousePosResult ( String, Float, Float )
+    | GetCellCandidate GridCoord
     | Blink
     | Tick Time.Posix
 

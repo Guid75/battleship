@@ -26,7 +26,7 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
 import Time
-import Types exposing (Board, CellType(..), Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Ship, ShipDef, State(..), Turn(..))
+import Types exposing (Board, CellType(..), CpuFireEngine, Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Ship, ShipDef, State(..), Turn(..))
 
 
 animator : Animator.Animator Model
@@ -127,6 +127,7 @@ init flags =
       , firing = Animator.init False
       , firingCell = Nothing
       , state = Preparing
+      , cpuFireEngine = CpuFireEngine []
       }
     , Cmd.batch
         [ GenLevel.randomizeShipPlacements Player <| GenLevel.createShipStartCouples 0 0 9 9
@@ -309,7 +310,7 @@ viewMyBoard model =
         , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], svgShips, phantomShip ]
+        List.concat [ [ drawGrid grid [] ], svgShips, viewShots model.myBoard, phantomShip ]
 
 
 isHit board coord =
@@ -420,6 +421,12 @@ viewInformationMessage model =
             case model.state of
                 Preparing ->
                     "You are invited to move your ships before launching the game"
+
+                Playing Player ->
+                    "Chose a cell to hit on your opponent's board"
+
+                Playing CPU ->
+                    "Wait for your opponent hit"
 
                 _ ->
                     "blabla"
@@ -1048,21 +1055,57 @@ pieceOut shipId model =
     { model | focusedShip = Nothing }
 
 
-fire : Model -> Model
-fire model =
+playerFire : Model -> Model
+playerFire model =
     let
         board =
             model.cpuBoard
 
-        newBoard =
+        ( newBoard, nextTurn ) =
             case model.firingCell of
                 Just coord ->
-                    { board | shots = coord :: board.shots }
+                    ( { board | shots = coord :: board.shots }
+                    , if isHit board coord then
+                        Player
+
+                      else
+                        CPU
+                    )
 
                 _ ->
-                    board
+                    ( board, Player )
     in
-    { model | cpuBoard = newBoard }
+    { model | cpuBoard = newBoard, state = Playing nextTurn }
+
+
+getCandidateCells : Board -> List GridCoord
+getCandidateCells board =
+    let
+        writeShot coord matrix =
+            Matrix.set coord.col coord.row False matrix
+    in
+    board.shots
+        |> List.foldl writeShot (Matrix.repeat 10 10 True)
+        |> Matrix.indexedMap (\col row value -> ( { col = col, row = row }, value ))
+        |> Matrix.toArray
+        |> Array.toList
+        |> List.filter (\( _, value ) -> value)
+        |> List.map (\( coord, _ ) -> coord)
+
+
+cpuFire : Model -> ( Model, Cmd Msg )
+cpuFire model =
+    case getCandidateCells model.myBoard of
+        head :: tail ->
+            let
+                coordGenerator : Random.Generator GridCoord
+                coordGenerator =
+                    Random.uniform head tail
+            in
+            ( model, Random.generate GetCellCandidate coordGenerator )
+
+        [] ->
+            ( model, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -1113,6 +1156,16 @@ update msg model =
             , Cmd.none
             )
 
+        GetCellCandidate cellCoord ->
+            let
+                board =
+                    model.myBoard
+
+                newBoard =
+                    { board | shots = cellCoord :: board.shots }
+            in
+            ( { model | myBoard = newBoard, state = Playing Player }, Cmd.none )
+
         Tick newTime ->
             let
                 animModel =
@@ -1121,12 +1174,19 @@ update msg model =
 
                 newModel =
                     if Animator.previous animModel.firing && not (Animator.previous model.firing) then
-                        fire animModel
+                        playerFire animModel
 
                     else
                         animModel
+
+                ( newNewModel, cmd ) =
+                    if newModel.state == Playing CPU then
+                        cpuFire newModel
+
+                    else
+                        ( newModel, Cmd.none )
             in
-            ( newModel, Cmd.none )
+            ( newNewModel, cmd )
 
 
 port requestSvgMousePos : ( String, Int, Int ) -> Cmd msg
