@@ -1,8 +1,8 @@
 module GenLevel exposing
     ( computeAvailableCells
-    , computeBoatCellPositions
-    , createBoatStartCouples
-    , randomizeBoatPlacements
+    , computeShipCellPositions
+    , createShipStartCouples
+    , randomizeShipPlacements
     , tryToPlace
     )
 
@@ -10,7 +10,7 @@ import Array
 import Matrix exposing (Matrix)
 import Random
 import Random.List
-import Types exposing (Boat, CellType(..), Direction(..), GridCoord, Model, Msg(..), Turn)
+import Types exposing (CellType(..), Direction(..), GridCoord, Model, Msg(..), Ship, Turn)
 
 
 directionGenerator : Random.Generator Direction
@@ -28,8 +28,8 @@ coordPlusDirection coordGenerator =
     Random.pair coordGenerator directionGenerator
 
 
-randomizeBoatPlacements : Turn -> List GridCoord -> Cmd Msg
-randomizeBoatPlacements turn cells =
+randomizeShipPlacements : Turn -> List GridCoord -> Cmd Msg
+randomizeShipPlacements turn cells =
     case cells of
         head :: tail ->
             let
@@ -45,8 +45,8 @@ randomizeBoatPlacements turn cells =
             Cmd.none
 
 
-createBoatStartCouples : Int -> Int -> Int -> Int -> List GridCoord
-createBoatStartCouples minCol minRow maxCol maxRow =
+createShipStartCouples : Int -> Int -> Int -> Int -> List GridCoord
+createShipStartCouples minCol minRow maxCol maxRow =
     let
         matrix =
             Matrix.generate (maxCol - minCol + 1) (maxRow - minRow + 1) (\col row -> { col = col + minCol, row = row + minRow })
@@ -56,8 +56,8 @@ createBoatStartCouples minCol minRow maxCol maxRow =
         |> Array.toList
 
 
-computeBoatCellPositions : Boat -> List GridCoord
-computeBoatCellPositions { pos, size, dir } =
+computeShipCellPositions : Ship -> List GridCoord
+computeShipCellPositions { pos, size, dir } =
     case dir of
         North ->
             List.foldl
@@ -88,11 +88,11 @@ computeBoatCellPositions { pos, size, dir } =
                 List.range (pos.col - size + 1) pos.col
 
 
-isBoatColliding : Boat -> Matrix CellType -> Bool
-isBoatColliding boat matrix =
+isShipColliding : Ship -> Matrix CellType -> Bool
+isShipColliding ship matrix =
     let
-        boatCellPositions =
-            computeBoatCellPositions boat
+        shipCellPositions =
+            computeShipCellPositions ship
 
         isCellColliding { col, row } =
             if col < 0 || col > 9 || row < 0 || row > 10 then
@@ -106,14 +106,14 @@ isBoatColliding boat matrix =
                     Err _ ->
                         True
     in
-    List.any isCellColliding boatCellPositions
+    List.any isCellColliding shipCellPositions
 
 
-writeBoat : Boat -> Matrix CellType -> Matrix CellType
-writeBoat boat gameMatrix =
+writeShip : Ship -> Matrix CellType -> Matrix CellType
+writeShip ship gameMatrix =
     let
-        boatCellPositions =
-            computeBoatCellPositions boat
+        shipCellPositions =
+            computeShipCellPositions ship
 
         writeSurroundedCellIfEmpty ( col, row ) matrix =
             case Matrix.get col row matrix of
@@ -134,11 +134,11 @@ writeBoat boat gameMatrix =
                 |> writeSurroundedCellIfEmpty ( col, row + 1 )
                 |> writeSurroundedCellIfEmpty ( col - 1, row + 1 )
 
-        writeBoatCell { col, row } matrix =
+        writeShipCell { col, row } matrix =
             Matrix.set col row Occupied matrix
                 |> writeSurroundedCells ( col, row )
     in
-    List.foldl writeBoatCell gameMatrix boatCellPositions
+    List.foldl writeShipCell gameMatrix shipCellPositions
 
 
 nextDir : Direction -> Direction
@@ -157,38 +157,38 @@ nextDir dir =
             North
 
 
-tryToPlace : Boat -> Matrix CellType -> ( Matrix CellType, Maybe Boat )
-tryToPlace boat matrix =
+tryToPlace : Ship -> Matrix CellType -> ( Matrix CellType, Maybe Ship )
+tryToPlace ship matrix =
     let
         dir2 =
-            boat.dir |> nextDir
+            ship.dir |> nextDir
 
         dir3 =
-            boat.dir |> nextDir |> nextDir
+            ship.dir |> nextDir |> nextDir
 
         dir4 =
-            boat.dir |> nextDir |> nextDir |> nextDir
+            ship.dir |> nextDir |> nextDir |> nextDir
 
-        boat2 =
-            { boat | dir = dir2 }
+        ship2 =
+            { ship | dir = dir2 }
 
-        boat3 =
-            { boat | dir = dir3 }
+        ship3 =
+            { ship | dir = dir3 }
 
-        boat4 =
-            { boat | dir = dir4 }
+        ship4 =
+            { ship | dir = dir4 }
     in
-    if not (isBoatColliding boat matrix) then
-        ( writeBoat boat matrix, Just boat )
+    if not (isShipColliding ship matrix) then
+        ( writeShip ship matrix, Just ship )
 
-    else if not (isBoatColliding boat2 matrix) then
-        ( writeBoat boat2 matrix, Just boat2 )
+    else if not (isShipColliding ship2 matrix) then
+        ( writeShip ship2 matrix, Just ship2 )
 
-    else if not (isBoatColliding boat3 matrix) then
-        ( writeBoat boat3 matrix, Just boat3 )
+    else if not (isShipColliding ship3 matrix) then
+        ( writeShip ship3 matrix, Just ship3 )
 
-    else if not (isBoatColliding boat4 matrix) then
-        ( writeBoat boat4 matrix, Just boat4 )
+    else if not (isShipColliding ship4 matrix) then
+        ( writeShip ship4 matrix, Just ship4 )
 
     else
         ( matrix, Nothing )

@@ -1,10 +1,10 @@
 module Figures exposing
     ( computeGridSizeByDirection
-    , drawBoat
-    , drawBoatFloating
-    , drawBoatPlacement
     , drawHit
     , drawMiss
+    , drawShip
+    , drawShipFloating
+    , drawShipPlacement
     , drawTarget
     )
 
@@ -13,7 +13,7 @@ import Grid
 import Svg exposing (Svg, g, line, rect)
 import Svg.Attributes exposing (cx, cy, fill, fillOpacity, height, id, r, rx, ry, stroke, strokeWidth, width, x, x1, x2, y, y1, y2)
 import Svg.Events
-import Types exposing (Boat, Direction(..), FloatCoord, Grid, GridCoord, GridSize, Msg(..))
+import Types exposing (Direction(..), FloatCoord, Grid, GridCoord, GridSize, Msg(..), Ship)
 
 
 drawTarget : Grid -> GridCoord -> Float -> Svg Msg
@@ -77,7 +77,7 @@ drawHit grid { col, row } =
         []
 
 
-computeGridSizeByDirection : Boat -> GridSize
+computeGridSizeByDirection : Ship -> GridSize
 computeGridSizeByDirection { dir, size } =
     case dir of
         South ->
@@ -93,7 +93,7 @@ computeGridSizeByDirection { dir, size } =
             { width = size, height = 1 }
 
 
-computeTopLeftPosition : Boat -> GridCoord
+computeTopLeftPosition : Ship -> GridCoord
 computeTopLeftPosition { dir, pos, size } =
     case dir of
         South ->
@@ -128,17 +128,17 @@ sizeToColor size =
             Color.rgb255 136 136 136
 
 
-drawBoat : Boat -> Grid -> List (Svg.Attribute Msg) -> Svg Msg
-drawBoat boat grid attrs =
+drawShip : Ship -> Grid -> List (Svg.Attribute Msg) -> Svg Msg
+drawShip ship grid attrs =
     let
         topLeft =
-            computeTopLeftPosition boat
+            computeTopLeftPosition ship
 
         topLeftCellCoord =
             Grid.getCellCoord topLeft.col topLeft.row grid
 
         size =
-            computeGridSizeByDirection boat
+            computeGridSizeByDirection ship
 
         bottomRight =
             Grid.getCellCoord (topLeft.col + size.width - 1) (topLeft.row + size.height - 1) grid
@@ -150,10 +150,10 @@ drawBoat boat grid attrs =
             2.0
 
         color =
-            sizeToColor boat.size
+            sizeToColor ship.size
 
         innerAttrs =
-            [ id boat.id
+            [ id ship.id
             , rx "10.0"
             , ry "10.0"
             , x <| String.fromFloat <| topLeftCellCoord.x + padding
@@ -162,8 +162,8 @@ drawBoat boat grid attrs =
             , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y - padding * 2.0
             , fill <| Color.toCssString color
             , stroke "gray"
-            , Svg.Events.onMouseOver <| PieceOver boat.id
-            , Svg.Events.onMouseOut <| PieceOut boat.id
+            , Svg.Events.onMouseOver <| PieceOver ship.id
+            , Svg.Events.onMouseOut <| PieceOut ship.id
             ]
     in
     rect
@@ -175,11 +175,11 @@ drawBoat boat grid attrs =
         []
 
 
-drawBoatFloating : Boat -> Grid -> FloatCoord -> Svg Msg
-drawBoatFloating boat grid topLeftCellCoord =
+drawShipFloating : Ship -> Grid -> FloatCoord -> Svg Msg
+drawShipFloating ship grid topLeftCellCoord =
     let
         size =
-            computeGridSizeByDirection boat
+            computeGridSizeByDirection ship
 
         fakeTopLeftCellCoord =
             Grid.getCellCoord 0 0 grid
@@ -206,7 +206,7 @@ drawBoatFloating boat grid topLeftCellCoord =
         color =
             let
                 rgba =
-                    Color.toRgba <| sizeToColor boat.size
+                    Color.toRgba <| sizeToColor ship.size
 
                 withAlpha =
                     { rgba | alpha = 0.7 }
@@ -214,7 +214,7 @@ drawBoatFloating boat grid topLeftCellCoord =
             Color.fromRgba withAlpha
     in
     rect
-        [ id boat.id
+        [ id ship.id
         , rx "10.0"
         , ry "10.0"
         , x <| String.fromFloat <| topLeftCellCoord.x + padding
@@ -227,14 +227,14 @@ drawBoatFloating boat grid topLeftCellCoord =
         []
 
 
-drawBoatPlacement : Boat -> Grid -> Svg Msg
-drawBoatPlacement boat grid =
+drawShipPlacement : Ship -> Grid -> Svg Msg
+drawShipPlacement ship grid =
     let
         topLeft =
-            computeTopLeftPosition boat
+            computeTopLeftPosition ship
 
         size =
-            computeGridSizeByDirection boat
+            computeGridSizeByDirection ship
 
         topLeftCellCoord =
             Grid.getCellCoord topLeft.col topLeft.row grid

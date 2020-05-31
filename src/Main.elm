@@ -22,7 +22,7 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
 import Time
-import Types exposing (Board, Boat, BoatDef, CellType(..), Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Turn(..))
+import Types exposing (Board, CellType(..), Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Ship, ShipDef, Turn(..))
 
 
 animator : Animator.Animator Model
@@ -40,13 +40,13 @@ animator =
             )
 
 
-boatDefs : List BoatDef
-boatDefs =
-    [ BoatDef "Carrier" 5
-    , BoatDef "Battleship" 4
-    , BoatDef "Cruiser" 3
-    , BoatDef "Submarine" 3
-    , BoatDef "Destroyer" 2
+shipDefs : List ShipDef
+shipDefs =
+    [ ShipDef "Carrier" 5
+    , ShipDef "Battleship" 4
+    , ShipDef "Cruiser" 3
+    , ShipDef "Submarine" 3
+    , ShipDef "Destroyer" 2
     ]
 
 
@@ -79,8 +79,8 @@ initModel model turn =
         newBoard =
             { board
                 | matrix = createFreshMatrix
-                , boatsToPlace = boatDefs
-                , boats = Dict.empty
+                , shipsToPlace = shipDefs
+                , ships = Dict.empty
                 , shots = []
                 , cellOver = Nothing
             }
@@ -97,8 +97,8 @@ init : () -> ( Model, Cmd Msg )
 init flags =
     ( { myBoard =
             { matrix = createFreshMatrix
-            , boatsToPlace = boatDefs
-            , boats = Dict.empty
+            , shipsToPlace = shipDefs
+            , ships = Dict.empty
             , shots = []
             , cellOver = Nothing
             , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#000000"
@@ -106,26 +106,26 @@ init flags =
             }
       , cpuBoard =
             { matrix = createFreshMatrix
-            , boatsToPlace = boatDefs
-            , boats = Dict.empty
+            , shipsToPlace = shipDefs
+            , ships = Dict.empty
             , shots = []
             , cellOver = Nothing
             , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#000000"
             , id = "cpuBoard"
             }
       , currentMousePos = { x = 0, y = 0 }
-      , clickedBoat = Nothing
+      , clickedShip = Nothing
       , clickedCell = Nothing
       , clickedPos = { x = 0, y = 0 }
-      , draggingBoat = False
-      , focusedBoat = Nothing
+      , draggingShip = False
+      , focusedShip = Nothing
       , focusedUp = Animator.init False
       , firing = Animator.init False
       , firingCell = Nothing
       }
     , Cmd.batch
-        [ GenLevel.randomizeBoatPlacements Player <| GenLevel.createBoatStartCouples 0 0 9 9
-        , GenLevel.randomizeBoatPlacements CPU <| GenLevel.createBoatStartCouples 0 0 9 9
+        [ GenLevel.randomizeShipPlacements Player <| GenLevel.createShipStartCouples 0 0 9 9
+        , GenLevel.randomizeShipPlacements CPU <| GenLevel.createShipStartCouples 0 0 9 9
         ]
     )
 
@@ -177,21 +177,21 @@ sizeToColor size =
             Color.rgb255 136 136 136
 
 
-boatToSvg grid boat focusedBoat model =
-    case ( model.clickedBoat, model.draggingBoat ) of
-        ( Just clickedBoat, True ) ->
-            if clickedBoat.id == boat.id then
-                clickedBoatToSvg grid boat
+shipToSvg grid ship focusedShip model =
+    case ( model.clickedShip, model.draggingShip ) of
+        ( Just clickedShip, True ) ->
+            if clickedShip.id == ship.id then
+                clickedShipToSvg grid ship
 
             else
-                regularBoatToSvg grid boat focusedBoat model
+                regularShipToSvg grid ship focusedShip model
 
         _ ->
-            regularBoatToSvg grid boat focusedBoat model
+            regularShipToSvg grid ship focusedShip model
 
 
-clickedBoatToSvg grid boat =
-    Figures.drawBoatPlacement boat grid
+clickedShipToSvg grid ship =
+    Figures.drawShipPlacement ship grid
 
 
 computeGridSizeByDirection : Direction -> Int -> GridSize
@@ -210,18 +210,18 @@ computeGridSizeByDirection dir size =
             { width = size, height = 1 }
 
 
-regularBoatToSvg grid boat focusedBoat model =
+regularShipToSvg grid ship focusedShip model =
     let
         id =
-            boat.id
+            ship.id
 
         color =
-            sizeToColor boat.size
+            sizeToColor ship.size
 
         focused =
-            case focusedBoat of
-                Just boat_ ->
-                    boat_.id == id
+            case focusedShip of
+                Just ship_ ->
+                    ship_.id == id
 
                 _ ->
                     False
@@ -259,37 +259,37 @@ regularBoatToSvg grid boat focusedBoat model =
             else
                 []
     in
-    Figures.drawBoat boat grid attrs
+    Figures.drawShip ship grid attrs
 
 
-generateBoatsSvg grid boats focusedBoat model =
-    boats
+generateShipsSvg grid ships focusedShip model =
+    ships
         |> Dict.values
         |> List.filter
-            (\myBoat ->
-                case model.clickedBoat of
+            (\myShip ->
+                case model.clickedShip of
                     Nothing ->
                         True
 
-                    Just boat ->
-                        (boat.id /= myBoat.id) || isBoatAllowedToBeThere model.myBoard myBoat
+                    Just ship ->
+                        (ship.id /= myShip.id) || isShipAllowedToBeThere model.myBoard myShip
             )
-        |> List.map (\boat -> boatToSvg grid boat focusedBoat model)
+        |> List.map (\ship -> shipToSvg grid ship focusedShip model)
 
 
-generatePhantomBoat grid board model =
-    case ( model.clickedBoat, model.draggingBoat ) of
-        ( Just clickedBoat, True ) ->
+generatePhantomShip grid board model =
+    case ( model.clickedShip, model.draggingShip ) of
+        ( Just clickedShip, True ) ->
             let
-                originBoatTopLeft =
-                    getGridTopLeftCoord clickedBoat board.grid
+                originShipTopLeft =
+                    getGridTopLeftCoord clickedShip board.grid
 
                 floatingTopLeft =
-                    { x = originBoatTopLeft.x - (model.clickedPos.x - model.currentMousePos.x)
-                    , y = originBoatTopLeft.y - (model.clickedPos.y - model.currentMousePos.y)
+                    { x = originShipTopLeft.x - (model.clickedPos.x - model.currentMousePos.x)
+                    , y = originShipTopLeft.y - (model.clickedPos.y - model.currentMousePos.y)
                     }
             in
-            [ Figures.drawBoatFloating clickedBoat board.grid floatingTopLeft ]
+            [ Figures.drawShipFloating clickedShip board.grid floatingTopLeft ]
 
         _ ->
             []
@@ -303,11 +303,11 @@ viewMyBoard model =
         grid =
             board.grid
 
-        svgBoats =
-            generateBoatsSvg grid board.boats model.focusedBoat model
+        svgShips =
+            generateShipsSvg grid board.ships model.focusedShip model
 
-        phantomBoat =
-            generatePhantomBoat grid board model
+        phantomShip =
+            generatePhantomShip grid board model
     in
     svg
         [ id board.id
@@ -319,11 +319,11 @@ viewMyBoard model =
         , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], svgBoats, phantomBoat ]
+        List.concat [ [ drawGrid grid [] ], svgShips, phantomShip ]
 
 
 isHit board coord =
-    getBoatByCell coord board /= Nothing
+    getShipByCell coord board /= Nothing
 
 
 viewShot board coord =
@@ -432,8 +432,8 @@ view model =
             ]
 
 
-buildForbiddenCellsMatrix : Board -> Boat -> Matrix Bool
-buildForbiddenCellsMatrix board exceptBoat =
+buildForbiddenCellsMatrix : Board -> Ship -> Matrix Bool
+buildForbiddenCellsMatrix board exceptShip =
     let
         forbiddenMatrix =
             Matrix.repeat 10 10 False
@@ -461,32 +461,32 @@ buildForbiddenCellsMatrix board exceptBoat =
             in
             List.concat [ cells, surroundingCells ]
 
-        fillMatrixWithForbiddenCells boat matrix =
-            GenLevel.computeBoatCellPositions boat
+        fillMatrixWithForbiddenCells ship matrix =
+            GenLevel.computeShipCellPositions ship
                 |> addAllSurroundedCells
                 |> List.foldl (\coord matrix_ -> Matrix.set coord.col coord.row True matrix_) matrix
     in
-    board.boats
+    board.ships
         |> Dict.values
-        |> List.filter (\boat -> boat.id /= exceptBoat.id)
+        |> List.filter (\ship -> ship.id /= exceptShip.id)
         |> List.foldl fillMatrixWithForbiddenCells forbiddenMatrix
 
 
-isBoatAllowedToBeThere : Board -> Boat -> Bool
-isBoatAllowedToBeThere board boat =
+isShipAllowedToBeThere : Board -> Ship -> Bool
+isShipAllowedToBeThere board ship =
     let
         forbiddenMatrix =
-            buildForbiddenCellsMatrix board boat
+            buildForbiddenCellsMatrix board ship
 
-        boatCells =
-            GenLevel.computeBoatCellPositions boat
+        shipCells =
+            GenLevel.computeShipCellPositions ship
 
         collidingCells =
-            boatCells
+            shipCells
                 |> List.filter (\coord -> Matrix.get coord.col coord.row forbiddenMatrix == Ok True)
 
         outOfScreenCells =
-            boatCells
+            shipCells
                 |> List.filter
                     (\coord ->
                         coord.col
@@ -513,10 +513,10 @@ iterPlacement turn pos dir model =
                 CPU ->
                     model.cpuBoard
     in
-    case board.boatsToPlace of
+    case board.shipsToPlace of
         head :: tail ->
-            case GenLevel.tryToPlace (Boat pos head.size dir head.id) board.matrix of
-                ( matrix, Just boat ) ->
+            case GenLevel.tryToPlace (Ship pos head.size dir head.id) board.matrix of
+                ( matrix, Just ship ) ->
                     let
                         newModel =
                             case turn of
@@ -525,8 +525,8 @@ iterPlacement turn pos dir model =
                                         | myBoard =
                                             { board
                                                 | matrix = matrix
-                                                , boatsToPlace = tail
-                                                , boats = Dict.insert head.id boat board.boats
+                                                , shipsToPlace = tail
+                                                , ships = Dict.insert head.id ship board.ships
                                             }
                                     }
 
@@ -535,20 +535,20 @@ iterPlacement turn pos dir model =
                                         | cpuBoard =
                                             { board
                                                 | matrix = matrix
-                                                , boatsToPlace = tail
-                                                , boats = Dict.insert head.id boat board.boats
+                                                , shipsToPlace = tail
+                                                , ships = Dict.insert head.id ship board.ships
                                             }
                                     }
                     in
                     ( newModel
                     , GenLevel.computeAvailableCells matrix
-                        |> GenLevel.randomizeBoatPlacements turn
+                        |> GenLevel.randomizeShipPlacements turn
                     )
 
                 _ ->
                     ( model
                     , GenLevel.computeAvailableCells board.matrix
-                        |> GenLevel.randomizeBoatPlacements turn
+                        |> GenLevel.randomizeShipPlacements turn
                     )
 
         [] ->
@@ -557,8 +557,8 @@ iterPlacement turn pos dir model =
 
 mouseMoveOnMyBoard : ( Float, Float ) -> Model -> Model
 mouseMoveOnMyBoard ( x, y ) model =
-    case ( model.clickedBoat, model.clickedCell, model.draggingBoat ) of
-        ( Just boat, Just clickedCell, True ) ->
+    case ( model.clickedShip, model.clickedCell, model.draggingShip ) of
+        ( Just ship, Just clickedCell, True ) ->
             let
                 board =
                     model.myBoard
@@ -566,92 +566,92 @@ mouseMoveOnMyBoard ( x, y ) model =
                 grid =
                     board.grid
 
-                boatBoundingBox =
-                    Figures.computeGridSizeByDirection boat
+                shipBoundingBox =
+                    Figures.computeGridSizeByDirection ship
 
                 currentCell =
                     Grid.getClosestCell { x = x, y = y } grid
 
-                rectifyPos oldBoat =
+                rectifyPos oldShip =
                     let
                         row =
-                            case oldBoat.dir of
+                            case oldShip.dir of
                                 North ->
-                                    if oldBoat.pos.row - oldBoat.size < 0 then
-                                        oldBoat.size - 1
+                                    if oldShip.pos.row - oldShip.size < 0 then
+                                        oldShip.size - 1
 
-                                    else if oldBoat.pos.row >= grid.rowCount then
+                                    else if oldShip.pos.row >= grid.rowCount then
                                         grid.rowCount - 1
 
                                     else
-                                        oldBoat.pos.row
+                                        oldShip.pos.row
 
                                 South ->
-                                    if oldBoat.pos.row < 0 then
+                                    if oldShip.pos.row < 0 then
                                         0
 
-                                    else if oldBoat.pos.row + oldBoat.size >= grid.rowCount then
-                                        grid.rowCount - oldBoat.size
+                                    else if oldShip.pos.row + oldShip.size >= grid.rowCount then
+                                        grid.rowCount - oldShip.size
 
                                     else
-                                        oldBoat.pos.row
+                                        oldShip.pos.row
 
                                 East ->
-                                    oldBoat.pos.row
+                                    oldShip.pos.row
 
                                 West ->
-                                    oldBoat.pos.row
+                                    oldShip.pos.row
 
                         col =
-                            case oldBoat.dir of
+                            case oldShip.dir of
                                 West ->
-                                    if oldBoat.pos.col - oldBoat.size < 0 then
-                                        oldBoat.size - 1
+                                    if oldShip.pos.col - oldShip.size < 0 then
+                                        oldShip.size - 1
 
-                                    else if oldBoat.pos.col >= grid.colCount then
+                                    else if oldShip.pos.col >= grid.colCount then
                                         grid.colCount - 1
 
                                     else
-                                        oldBoat.pos.col
+                                        oldShip.pos.col
 
                                 East ->
-                                    if oldBoat.pos.col < 0 then
+                                    if oldShip.pos.col < 0 then
                                         0
 
-                                    else if oldBoat.pos.col + oldBoat.size >= grid.colCount then
-                                        grid.colCount - oldBoat.size
+                                    else if oldShip.pos.col + oldShip.size >= grid.colCount then
+                                        grid.colCount - oldShip.size
 
                                     else
-                                        oldBoat.pos.col
+                                        oldShip.pos.col
 
                                 North ->
-                                    oldBoat.pos.col
+                                    oldShip.pos.col
 
                                 South ->
-                                    oldBoat.pos.col
+                                    oldShip.pos.col
 
                         newPos =
                             { row = row, col = col }
                     in
-                    { boat | pos = newPos }
+                    { ship | pos = newPos }
 
-                newBoat =
-                    { boat
+                newShip =
+                    { ship
                         | pos =
-                            { col = boat.pos.col + currentCell.col - clickedCell.col
-                            , row = boat.pos.row + currentCell.row - clickedCell.row
+                            { col = ship.pos.col + currentCell.col - clickedCell.col
+                            , row = ship.pos.row + currentCell.row - clickedCell.row
                             }
                     }
                         |> rectifyPos
 
                 newBoards =
-                    { board | boats = Dict.insert boat.id newBoat board.boats }
+                    { board | ships = Dict.insert ship.id newShip board.ships }
             in
             { model | myBoard = newBoards }
 
         _ ->
             if (model.clickedCell /= Nothing) && tearoffDrag { x = x, y = y } model.clickedPos then
-                { model | draggingBoat = True }
+                { model | draggingShip = True }
 
             else
                 model
@@ -695,47 +695,47 @@ mouseMove ( id, x, y ) model =
             mouseMoveOnCPUBoard ( x, y ) newModel
 
 
-isCellBelongToBoat : GridCoord -> Boat -> Bool
-isCellBelongToBoat cell boat =
-    GenLevel.computeBoatCellPositions boat
-        |> List.any (\boatCell -> boatCell == cell)
+isCellBelongToShip : GridCoord -> Ship -> Bool
+isCellBelongToShip cell ship =
+    GenLevel.computeShipCellPositions ship
+        |> List.any (\shipCell -> shipCell == cell)
 
 
-getBoatByCell : GridCoord -> Board -> Maybe Boat
-getBoatByCell cell board =
-    case Dict.Extra.find (\_ boat -> isCellBelongToBoat cell boat) board.boats of
-        Just ( id, boat ) ->
-            Just boat
-
-        _ ->
-            Nothing
-
-
-getBoatById : String -> Board -> Maybe Boat
-getBoatById id_ board =
-    case Dict.Extra.find (\_ boat -> boat.id == id_) board.boats of
-        Just ( id, boat ) ->
-            Just boat
+getShipByCell : GridCoord -> Board -> Maybe Ship
+getShipByCell cell board =
+    case Dict.Extra.find (\_ ship -> isCellBelongToShip cell ship) board.ships of
+        Just ( id, ship ) ->
+            Just ship
 
         _ ->
             Nothing
 
 
-getGridTopLeftCoord boat grid =
+getShipById : String -> Board -> Maybe Ship
+getShipById id_ board =
+    case Dict.Extra.find (\_ ship -> ship.id == id_) board.ships of
+        Just ( _, ship ) ->
+            Just ship
+
+        _ ->
+            Nothing
+
+
+getGridTopLeftCoord ship grid =
     let
         topLeft =
-            case boat.dir of
+            case ship.dir of
                 South ->
-                    boat.pos
+                    ship.pos
 
                 East ->
-                    boat.pos
+                    ship.pos
 
                 North ->
-                    { col = boat.pos.col, row = boat.pos.row - boat.size + 1 }
+                    { col = ship.pos.col, row = ship.pos.row - ship.size + 1 }
 
                 West ->
-                    { col = boat.pos.col - boat.size + 1, row = boat.pos.row }
+                    { col = ship.pos.col - ship.size + 1, row = ship.pos.row }
     in
     Grid.getCellCoord topLeft.col topLeft.row grid
 
@@ -746,11 +746,11 @@ mouseDownMyBoard event model =
         cell =
             Grid.getClosestCell model.currentMousePos model.myBoard.grid
 
-        maybeBoat =
-            getBoatByCell cell model.myBoard
+        maybeShip =
+            getShipByCell cell model.myBoard
     in
     { model
-        | clickedBoat = maybeBoat
+        | clickedShip = maybeShip
         , clickedCell = Just cell
         , clickedPos = model.currentMousePos
     }
@@ -772,11 +772,11 @@ mouseDownCpuBoard event model =
 
 cancelMoveIfNeeded : Model -> Model
 cancelMoveIfNeeded model =
-    case model.clickedBoat of
-        Just clickedBoat ->
-            case getBoatById clickedBoat.id model.myBoard of
-                Just movedBoat ->
-                    if isBoatAllowedToBeThere model.myBoard movedBoat then
+    case model.clickedShip of
+        Just clickedShip ->
+            case getShipById clickedShip.id model.myBoard of
+                Just movedShip ->
+                    if isShipAllowedToBeThere model.myBoard movedShip then
                         model
 
                     else
@@ -785,7 +785,7 @@ cancelMoveIfNeeded model =
                                 model.myBoard
 
                             newBoard =
-                                { board | boats = Dict.insert movedBoat.id clickedBoat board.boats }
+                                { board | ships = Dict.insert movedShip.id clickedShip board.ships }
                         in
                         { model | myBoard = newBoard }
 
@@ -796,78 +796,78 @@ cancelMoveIfNeeded model =
             model
 
 
-rotateBoat90 : Boat -> Boat
-rotateBoat90 boat =
-    case boat.dir of
+rotateShip90 : Ship -> Ship
+rotateShip90 ship =
+    case ship.dir of
         North ->
-            { boat | dir = East }
+            { ship | dir = East }
 
         East ->
-            { boat | dir = South }
+            { ship | dir = South }
 
         South ->
-            { boat | dir = West }
+            { ship | dir = West }
 
         West ->
-            { boat | dir = North }
+            { ship | dir = North }
 
 
-centralRotation : Boat -> Boat
-centralRotation boat =
+centralRotation : Ship -> Ship
+centralRotation ship =
     let
         halfSize =
-            boat.size // 2
+            ship.size // 2
     in
-    case boat.dir of
+    case ship.dir of
         North ->
-            { boat | dir = East, pos = { col = boat.pos.col - halfSize, row = boat.pos.row - halfSize } }
+            { ship | dir = East, pos = { col = ship.pos.col - halfSize, row = ship.pos.row - halfSize } }
 
         East ->
-            { boat | dir = South, pos = { col = boat.pos.col + halfSize, row = boat.pos.row - halfSize } }
+            { ship | dir = South, pos = { col = ship.pos.col + halfSize, row = ship.pos.row - halfSize } }
 
         South ->
-            { boat | dir = West, pos = { col = boat.pos.col + halfSize, row = boat.pos.row + halfSize } }
+            { ship | dir = West, pos = { col = ship.pos.col + halfSize, row = ship.pos.row + halfSize } }
 
         West ->
-            { boat | dir = North, pos = { col = boat.pos.col - halfSize, row = boat.pos.row + halfSize } }
+            { ship | dir = North, pos = { col = ship.pos.col - halfSize, row = ship.pos.row + halfSize } }
 
 
-reverseDirBoat : Boat -> Boat
-reverseDirBoat boat =
-    case boat.dir of
+reverseDirShip : Ship -> Ship
+reverseDirShip ship =
+    case ship.dir of
         North ->
-            { boat
+            { ship
                 | dir = South
                 , pos =
-                    { col = boat.pos.col
-                    , row = boat.pos.row - boat.size + 1
+                    { col = ship.pos.col
+                    , row = ship.pos.row - ship.size + 1
                     }
             }
 
         East ->
-            { boat
+            { ship
                 | dir = West
                 , pos =
-                    { col = boat.pos.col + boat.size - 1
-                    , row = boat.pos.row
+                    { col = ship.pos.col + ship.size - 1
+                    , row = ship.pos.row
                     }
             }
 
         South ->
-            { boat
+            { ship
                 | dir = North
                 , pos =
-                    { col = boat.pos.col
-                    , row = boat.pos.row + boat.size - 1
+                    { col = ship.pos.col
+                    , row = ship.pos.row + ship.size - 1
                     }
             }
 
         West ->
-            { boat
+            { ship
                 | dir = East
                 , pos =
-                    { col = boat.pos.col - boat.size + 1
-                    , row = boat.pos.row
+                    { col = ship.pos.col - ship.size + 1
+                    , row = ship.pos.row
                     }
             }
 
@@ -878,49 +878,49 @@ rotationStuff model =
         cell =
             Grid.getClosestCell model.currentMousePos model.myBoard.grid
     in
-    if not model.draggingBoat && Just cell == model.clickedCell then
-        case model.clickedBoat of
-            Just clickedBoat ->
+    if not model.draggingShip && Just cell == model.clickedCell then
+        case model.clickedShip of
+            Just clickedShip ->
                 let
-                    boat90 =
-                        clickedBoat |> rotateBoat90
+                    ship90 =
+                        clickedShip |> rotateShip90
 
-                    boat270 =
-                        boat90 |> rotateBoat90 |> rotateBoat90
+                    ship270 =
+                        ship90 |> rotateShip90 |> rotateShip90
 
                     reverse90 =
-                        clickedBoat |> reverseDirBoat |> rotateBoat90
+                        clickedShip |> reverseDirShip |> rotateShip90
 
                     reverse270 =
-                        reverse90 |> rotateBoat90 |> rotateBoat90
+                        reverse90 |> rotateShip90 |> rotateShip90
 
                     central =
-                        clickedBoat |> centralRotation
+                        clickedShip |> centralRotation
 
-                    newBoat =
-                        if isBoatAllowedToBeThere board boat90 then
-                            boat90
+                    newShip =
+                        if isShipAllowedToBeThere board ship90 then
+                            ship90
 
-                        else if isBoatAllowedToBeThere board boat270 then
-                            boat270
+                        else if isShipAllowedToBeThere board ship270 then
+                            ship270
 
-                        else if isBoatAllowedToBeThere board reverse90 then
+                        else if isShipAllowedToBeThere board reverse90 then
                             reverse90
 
-                        else if isBoatAllowedToBeThere board reverse270 then
+                        else if isShipAllowedToBeThere board reverse270 then
                             reverse270
 
-                        else if isBoatAllowedToBeThere board central then
+                        else if isShipAllowedToBeThere board central then
                             central
 
                         else
-                            clickedBoat
+                            clickedShip
 
                     board =
                         model.myBoard
 
                     newBoard =
-                        { board | boats = Dict.insert newBoat.id newBoat board.boats }
+                        { board | ships = Dict.insert newShip.id newShip board.ships }
                 in
                 { model | myBoard = newBoard }
 
@@ -934,9 +934,9 @@ rotationStuff model =
 cleanupMoveModelItems : Model -> Model
 cleanupMoveModelItems model =
     { model
-        | clickedBoat = Nothing
+        | clickedShip = Nothing
         , clickedCell = Nothing
-        , draggingBoat = False
+        , draggingShip = False
     }
 
 
@@ -984,13 +984,13 @@ mouseUp boardId event model =
 
 
 pieceOver : String -> Model -> Model
-pieceOver boatId model =
-    { model | focusedBoat = getBoatById boatId model.myBoard }
+pieceOver shipId model =
+    { model | focusedShip = getShipById shipId model.myBoard }
 
 
 pieceOut : String -> Model -> Model
-pieceOut boatId model =
-    { model | focusedBoat = Nothing }
+pieceOut shipId model =
+    { model | focusedShip = Nothing }
 
 
 fire : Model -> Model
@@ -1022,13 +1022,13 @@ update msg model =
                 newModel =
                     initModel model turn
             in
-            ( newModel, GenLevel.randomizeBoatPlacements turn <| GenLevel.createBoatStartCouples 0 0 9 9 )
+            ( newModel, GenLevel.randomizeShipPlacements turn <| GenLevel.createShipStartCouples 0 0 9 9 )
 
-        PieceOver boatId ->
-            ( pieceOver boatId model, Cmd.none )
+        PieceOver shipId ->
+            ( pieceOver shipId model, Cmd.none )
 
-        PieceOut boatId ->
-            ( pieceOut boatId model, Cmd.none )
+        PieceOut shipId ->
+            ( pieceOut shipId model, Cmd.none )
 
         MouseDown id event ->
             ( mouseDown id event model, Cmd.none )

@@ -1,7 +1,5 @@
 module Types exposing
     ( Board
-    , Boat
-    , BoatDef
     , CellType(..)
     , Direction(..)
     , FloatCoord
@@ -11,6 +9,8 @@ module Types exposing
     , Model
     , Msg(..)
     , Rect
+    , Ship
+    , ShipDef
     , Turn(..)
     )
 
@@ -29,8 +29,8 @@ type Turn
 
 type alias Board =
     { matrix : Matrix CellType
-    , boatsToPlace : List BoatDef
-    , boats : Dict String Boat
+    , shipsToPlace : List ShipDef
+    , ships : Dict String Ship
     , shots : List GridCoord
     , cellOver : Maybe GridCoord
     , grid : Grid
@@ -42,14 +42,14 @@ type alias Model =
     { myBoard : Board
     , cpuBoard : Board
     , currentMousePos : FloatCoord
-    , clickedBoat : Maybe Boat
+    , clickedShip : Maybe Ship
     , clickedCell : Maybe GridCoord
     , clickedPos : FloatCoord
-    , focusedBoat : Maybe Boat
+    , focusedShip : Maybe Ship
     , focusedUp : Animator.Timeline Bool
     , firing : Animator.Timeline Bool
     , firingCell : Maybe GridCoord
-    , draggingBoat : Bool
+    , draggingShip : Bool
     }
 
 
@@ -66,13 +66,13 @@ type Msg
     | Tick Time.Posix
 
 
-type alias BoatDef =
+type alias ShipDef =
     { id : String
     , size : Int
     }
 
 
-type alias Boat =
+type alias Ship =
     { pos : GridCoord
     , size : Int
     , dir : Direction
