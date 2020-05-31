@@ -7,7 +7,9 @@ import Browser
 import Color
 import Dict exposing (Dict)
 import Dict.Extra
-import Element exposing (Element, alignRight, centerY, column, el, fill, padding, rgb255, row, spacing, text, width)
+import Element exposing (Element, alignRight, centerX, centerY, column, el, fill, padding, px, rgb, rgb255, row, spacing, text, width)
+import Element.Background as Background
+import Element.Font as Font
 import Figures
 import GenLevel
 import Grid exposing (drawGrid)
@@ -22,7 +24,7 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
 import Time
-import Types exposing (Board, CellType(..), Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Ship, ShipDef, Turn(..))
+import Types exposing (Board, CellType(..), Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Ship, ShipDef, State(..), Turn(..))
 
 
 animator : Animator.Animator Model
@@ -122,6 +124,7 @@ init flags =
       , focusedUp = Animator.init False
       , firing = Animator.init False
       , firingCell = Nothing
+      , state = Preparing
       }
     , Cmd.batch
         [ GenLevel.randomizeShipPlacements Player <| GenLevel.createShipStartCouples 0 0 9 9
@@ -156,25 +159,6 @@ displayRow matrix rowIndex =
             div
                 []
                 []
-
-
-sizeToColor : Int -> Color.Color
-sizeToColor size =
-    case size of
-        2 ->
-            Color.rgb255 255 136 136
-
-        3 ->
-            Color.rgb255 136 255 136
-
-        4 ->
-            Color.rgb255 136 136 255
-
-        5 ->
-            Color.rgb255 136 136 136
-
-        _ ->
-            Color.rgb255 136 136 136
 
 
 shipToSvg grid ship focusedShip model =
@@ -216,7 +200,7 @@ regularShipToSvg grid ship focusedShip model =
             ship.id
 
         color =
-            sizeToColor ship.size
+            Figures.sizeToColor ship.size
 
         focused =
             case focusedShip of
@@ -307,13 +291,17 @@ viewMyBoard model =
             generateShipsSvg grid board.ships model.focusedShip model
 
         phantomShip =
-            generatePhantomShip grid board model
+            if model.state == Preparing then
+                generatePhantomShip grid board model
+
+            else
+                []
     in
     svg
         [ id board.id
-        , Svg.Attributes.width "400"
+        , Svg.Attributes.width "350"
         , height "350"
-        , viewBox "0 0 400 350"
+        , viewBox "0 0 350 350"
         , Mouse.onMove (MouseMove board.id)
         , Mouse.onDown (MouseDown board.id)
         , Mouse.onUp (MouseUp board.id)
@@ -379,7 +367,7 @@ viewCpuBoard model =
     in
     svg
         [ id board.id
-        , Svg.Attributes.width "400"
+        , Svg.Attributes.width "350"
         , height "350"
 
         --        , viewBox "0 0 400 350"
@@ -395,10 +383,10 @@ viewMe model =
     column
         []
         [ Element.html <| viewMyBoard model
-        , Element.el
-            [ Element.centerX ]
+        , el
+            [ centerX ]
           <|
-            Element.text "Me"
+            Element.text "You"
         ]
 
 
@@ -409,16 +397,43 @@ viewCpu model =
         , Element.el
             [ Element.centerX ]
           <|
-            Element.text "CPU"
+            Element.text "Computer"
         ]
 
 
 viewBoards model =
     row
-        [ padding 40, Element.spacing 40 ]
+        [ padding 40
+        , Element.spacing 40
+        ]
         [ viewMe model
         , viewCpu model
         ]
+
+
+viewInformationMessage model =
+    let
+        message =
+            case model.state of
+                Preparing ->
+                    "You are invited to move your ships before launching the game"
+
+                _ ->
+                    "blabla"
+    in
+    el
+        [ centerX
+        , centerY
+        , Element.height <| px 40
+        , Background.color <| rgb 0.9 0.9 0.9
+        , Element.paddingXY 20 0
+        , Font.size 14
+        ]
+    <|
+        el
+            [ centerY ]
+        <|
+            Element.text message
 
 
 view model =
@@ -428,6 +443,7 @@ view model =
         column
             []
             [ viewBoards model
+            , viewInformationMessage model
             , Element.html <| button [ Html.Events.onClick <| Generate Player ] [ Html.text "New random draw" ]
             ]
 
@@ -742,18 +758,23 @@ getGridTopLeftCoord ship grid =
 
 mouseDownMyBoard : Mouse.Event -> Model -> Model
 mouseDownMyBoard event model =
-    let
-        cell =
-            Grid.getClosestCell model.currentMousePos model.myBoard.grid
+    case model.state of
+        Preparing ->
+            let
+                cell =
+                    Grid.getClosestCell model.currentMousePos model.myBoard.grid
 
-        maybeShip =
-            getShipByCell cell model.myBoard
-    in
-    { model
-        | clickedShip = maybeShip
-        , clickedCell = Just cell
-        , clickedPos = model.currentMousePos
-    }
+                maybeShip =
+                    getShipByCell cell model.myBoard
+            in
+            { model
+                | clickedShip = maybeShip
+                , clickedCell = Just cell
+                , clickedPos = model.currentMousePos
+            }
+
+        _ ->
+            model
 
 
 mouseDownCpuBoard : Mouse.Event -> Model -> Model
@@ -942,10 +963,15 @@ cleanupMoveModelItems model =
 
 mouseUpMyBoard : Model -> Model
 mouseUpMyBoard model =
-    model
-        |> cancelMoveIfNeeded
-        |> rotationStuff
-        |> cleanupMoveModelItems
+    case model.state of
+        Preparing ->
+            model
+                |> cancelMoveIfNeeded
+                |> rotationStuff
+                |> cleanupMoveModelItems
+
+        _ ->
+            model
 
 
 mouseDown : String -> Mouse.Event -> Model -> Model

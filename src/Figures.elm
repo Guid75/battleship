@@ -6,6 +6,7 @@ module Figures exposing
     , drawShipFloating
     , drawShipPlacement
     , drawTarget
+    , sizeToColor
     )
 
 import Color
@@ -113,10 +114,10 @@ sizeToColor : Int -> Color.Color
 sizeToColor size =
     case size of
         2 ->
-            Color.rgb255 255 136 136
+            Color.rgb255 200 136 136
 
         3 ->
-            Color.rgb255 136 255 136
+            Color.rgb255 136 200 136
 
         4 ->
             Color.rgb255 136 136 255

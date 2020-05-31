@@ -11,6 +11,7 @@ module Types exposing
     , Rect
     , Ship
     , ShipDef
+    , State(..)
     , Turn(..)
     )
 
@@ -25,6 +26,12 @@ import Time
 type Turn
     = Player
     | CPU
+
+
+type State
+    = Preparing
+    | Playing Turn
+    | End
 
 
 type alias Board =
@@ -50,6 +57,7 @@ type alias Model =
     , firing : Animator.Timeline Bool
     , firingCell : Maybe GridCoord
     , draggingShip : Bool
+    , state : State
     }
 
 
