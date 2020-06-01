@@ -313,12 +313,12 @@ viewMyBoard model =
         List.concat [ [ drawGrid grid [] ], svgShips, viewShots model.myBoard, phantomShip ]
 
 
-isHit board coord =
+belongsToShip board coord =
     getShipByCell coord board /= Nothing
 
 
 viewShot board coord =
-    if isHit board coord then
+    if belongsToShip board coord then
         Figures.drawHit board.grid coord
 
     else
@@ -328,6 +328,16 @@ viewShot board coord =
 viewShots board =
     board.shots
         |> List.map (viewShot board)
+
+
+isAShotCoord : GridCoord -> Board -> Bool
+isAShotCoord coord board =
+    let
+        shots =
+            board.shots
+                |> List.filter (\shot -> shot == coord)
+    in
+    List.length shots > 0
 
 
 viewCpuBoard model =
@@ -359,11 +369,15 @@ viewCpuBoard model =
             in
             case ( maybeCoord, model.state ) of
                 ( Just coord, Playing Player ) ->
-                    [ Figures.drawTarget
-                        grid
-                        coord
-                        fireAmount
-                    ]
+                    if isAShotCoord coord board then
+                        []
+
+                    else
+                        [ Figures.drawTarget
+                            grid
+                            coord
+                            fireAmount
+                        ]
 
                 _ ->
                     []
@@ -819,12 +833,16 @@ mouseDownCpuBoard event model =
         cell =
             Grid.getClosestCell model.currentMousePos model.cpuBoard.grid
     in
-    { model
-        | firing =
-            model.firing
-                |> Animator.go (Animator.millis 1000) (not <| Animator.current model.firing)
-        , firingCell = Just cell
-    }
+    if isAShotCoord cell model.cpuBoard then
+        model
+
+    else
+        { model
+            | firing =
+                model.firing
+                    |> Animator.go (Animator.millis 1000) (not <| Animator.current model.firing)
+            , firingCell = Just cell
+        }
 
 
 cancelMoveIfNeeded : Model -> Model
@@ -1065,7 +1083,7 @@ playerFire model =
             case model.firingCell of
                 Just coord ->
                     ( { board | shots = coord :: board.shots }
-                    , if isHit board coord then
+                    , if belongsToShip board coord then
                         Player
 
                       else
