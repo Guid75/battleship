@@ -59,7 +59,6 @@ type alias Model =
     , clickedCell : Maybe GridCoord
     , clickedPos : FloatCoord
     , focusedShip : Maybe Ship
-    , focusedUp : Animator.Timeline Bool
     , firing : Animator.Timeline Bool
     , firingCell : Maybe GridCoord
     , draggingShip : Bool
@@ -79,7 +78,6 @@ type Msg
     | MouseUp String Mouse.Event
     | SvgMousePosResult ( String, Float, Float )
     | GetCellCandidate GridCoord
-    | Blink
     | Tick Time.Posix
 
 

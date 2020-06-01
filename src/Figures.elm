@@ -129,8 +129,8 @@ sizeToColor size =
             Color.rgb255 136 136 136
 
 
-drawShip : Ship -> Grid -> List (Svg.Attribute Msg) -> Svg Msg
-drawShip ship grid attrs =
+drawShip : Ship -> Grid -> Svg Msg
+drawShip ship grid =
     let
         topLeft =
             computeTopLeftPosition ship
@@ -152,27 +152,20 @@ drawShip ship grid attrs =
 
         color =
             sizeToColor ship.size
-
-        innerAttrs =
-            [ id ship.id
-            , rx "10.0"
-            , ry "10.0"
-            , x <| String.fromFloat <| topLeftCellCoord.x + padding
-            , y <| String.fromFloat <| topLeftCellCoord.y + padding
-            , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x - padding * 2.0
-            , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y - padding * 2.0
-            , fill <| Color.toCssString color
-            , stroke "gray"
-            , Svg.Events.onMouseOver <| PieceOver ship.id
-            , Svg.Events.onMouseOut <| PieceOut ship.id
-            ]
     in
     rect
-        (List.concat
-            [ innerAttrs
-            , attrs
-            ]
-        )
+        [ id ship.id
+        , rx "10.0"
+        , ry "10.0"
+        , x <| String.fromFloat <| topLeftCellCoord.x + padding
+        , y <| String.fromFloat <| topLeftCellCoord.y + padding
+        , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x - padding * 2.0
+        , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y - padding * 2.0
+        , fill <| Color.toCssString color
+        , stroke "gray"
+        , Svg.Events.onMouseOver <| PieceOver ship.id
+        , Svg.Events.onMouseOut <| PieceOut ship.id
+        ]
         []
 
 

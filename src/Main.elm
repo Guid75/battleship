@@ -33,11 +33,6 @@ animator : Animator.Animator Model
 animator =
     Animator.animator
         |> Animator.watching
-            .focusedUp
-            (\newFocusedUp model ->
-                { model | focusedUp = newFocusedUp }
-            )
-        |> Animator.watching
             .firing
             (\newFiring model ->
                 { model | firing = newFiring }
@@ -123,7 +118,6 @@ init flags =
       , clickedPos = { x = 0, y = 0 }
       , draggingShip = False
       , focusedShip = Nothing
-      , focusedUp = Animator.init False
       , firing = Animator.init False
       , firingCell = Nothing
       , state = Preparing
@@ -198,55 +192,7 @@ computeGridSizeByDirection dir size =
 
 
 regularShipToSvg grid ship focusedShip model =
-    let
-        id =
-            ship.id
-
-        color =
-            Figures.sizeToColor ship.size
-
-        focused =
-            case focusedShip of
-                Just ship_ ->
-                    ship_.id == id
-
-                _ ->
-                    False
-
-        c =
-            Color.toRgba color
-
-        computeColor f =
-            let
-                red =
-                    c.red + (1.0 - c.red) * f
-
-                green =
-                    c.green + (1.0 - c.green) * f
-
-                blue =
-                    c.blue + (1.0 - c.blue) * f
-            in
-            Color.fromRgba { red = red, green = green, blue = blue, alpha = c.alpha }
-
-        attrs =
-            if focused then
-                [ Animator.Inline.style model.focusedUp
-                    "fill"
-                    (\f -> Color.toCssString <| computeColor f)
-                    (\state ->
-                        if state then
-                            Animator.at 0
-
-                        else
-                            Animator.at 0.6
-                    )
-                ]
-
-            else
-                []
-    in
-    Figures.drawShip ship grid attrs
+    Figures.drawShip ship grid
 
 
 generateShipsSvg grid ships focusedShip model =
@@ -1165,15 +1111,6 @@ update msg model =
         SvgMousePosResult pos ->
             ( mouseMove pos model, Cmd.none )
 
-        Blink ->
-            ( { model
-                | focusedUp =
-                    model.focusedUp
-                        |> Animator.go (Animator.millis 100) (not <| Animator.current model.focusedUp)
-              }
-            , Cmd.none
-            )
-
         GetCellCandidate cellCoord ->
             let
                 board =
@@ -1217,7 +1154,6 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ svgMousePosResult SvgMousePosResult
-        , Time.every 200 (always Blink)
         , animator
             |> Animator.toSubscription Tick model
         ]
