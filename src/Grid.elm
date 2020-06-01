@@ -3,6 +3,7 @@ module Grid exposing
     , computeGridWidth
     , drawGrid
     , getCellCoord
+    , getCellUnder
     , getClosestCell
     , getGridTopLeft
     , isInGrid
@@ -247,3 +248,12 @@ getClosestCell { x, y } grid =
     { col = getClosestCol x grid
     , row = getClosestRow y grid
     }
+
+
+getCellUnder : FloatCoord -> Grid -> Maybe GridCoord
+getCellUnder coord grid =
+    if isInGrid coord grid then
+        Just <| getClosestCell coord grid
+
+    else
+        Nothing

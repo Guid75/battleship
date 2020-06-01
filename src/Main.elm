@@ -86,7 +86,7 @@ initModel model turn =
                 , shipsToPlace = shipDefs
                 , ships = Dict.empty
                 , shots = []
-                , cellOver = Nothing
+                , cellUnder = Nothing
             }
     in
     case turn of
@@ -104,7 +104,7 @@ init flags =
             , shipsToPlace = shipDefs
             , ships = Dict.empty
             , shots = []
-            , cellOver = Nothing
+            , cellUnder = Nothing
             , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#A0A0A0"
             , id = "myBoard"
             }
@@ -113,7 +113,7 @@ init flags =
             , shipsToPlace = shipDefs
             , ships = Dict.empty
             , shots = []
-            , cellOver = Nothing
+            , cellUnder = Nothing
             , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#A0A0A0"
             , id = "cpuBoard"
             }
@@ -338,7 +338,7 @@ viewCpuBoard model =
         grid =
             board.grid
 
-        cellOverSvg =
+        cellUnderSvg =
             let
                 maybeCoord =
                     case model.firingCell of
@@ -346,7 +346,7 @@ viewCpuBoard model =
                             Just firingCoord
 
                         Nothing ->
-                            board.cellOver
+                            board.cellUnder
 
                 fireAmount =
                     Animator.linear model.firing <|
@@ -379,7 +379,7 @@ viewCpuBoard model =
         , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], viewShots model.cpuBoard, cellOverSvg ]
+        List.concat [ [ drawGrid grid [] ], viewShots model.cpuBoard, cellUnderSvg ]
 
 
 viewMe model =
@@ -727,10 +727,10 @@ mouseMoveOnCPUBoard ( x, y ) model =
         board =
             model.cpuBoard
 
-        cell =
-            Grid.getClosestCell { x = x, y = y } board.grid
+        cellUnder =
+            Grid.getCellUnder { x = x, y = y } board.grid
     in
-    { model | cpuBoard = { board | cellOver = Just cell } }
+    { model | cpuBoard = { board | cellUnder = cellUnder } }
 
 
 mouseMove : ( String, Float, Float ) -> Model -> Model

@@ -40,7 +40,7 @@ type alias Board =
     , shipsToPlace : List ShipDef
     , ships : Dict String Ship
     , shots : List GridCoord
-    , cellOver : Maybe GridCoord
+    , cellUnder : Maybe GridCoord
     , grid : Grid
     , id : String
     }
