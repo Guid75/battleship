@@ -129,8 +129,8 @@ sizeToColor size =
             Color.rgb255 136 136 136
 
 
-drawShip : Ship -> Grid -> Svg Msg
-drawShip ship grid =
+drawShip : Ship -> Grid -> Bool -> Svg Msg
+drawShip ship grid focused =
     let
         topLeft =
             computeTopLeftPosition ship
@@ -152,6 +152,16 @@ drawShip ship grid =
 
         color =
             sizeToColor ship.size
+
+        strokeC =
+            Color.darkGray
+
+        strokeW =
+            if focused then
+                3.0
+
+            else
+                1.0
     in
     rect
         [ id ship.id
@@ -162,7 +172,8 @@ drawShip ship grid =
         , width <| String.fromFloat <| bottomRightCoord.x - topLeftCellCoord.x - padding * 2.0
         , height <| String.fromFloat <| bottomRightCoord.y - topLeftCellCoord.y - padding * 2.0
         , fill <| Color.toCssString color
-        , stroke "gray"
+        , stroke <| Color.toCssString strokeC
+        , strokeWidth <| String.fromFloat <| strokeW
         , Svg.Events.onMouseOver <| PieceOver ship.id
         , Svg.Events.onMouseOut <| PieceOut ship.id
         ]

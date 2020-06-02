@@ -192,7 +192,7 @@ computeGridSizeByDirection dir size =
 
 
 regularShipToSvg grid ship focusedShip model =
-    Figures.drawShip ship grid
+    Figures.drawShip ship grid (model.state == Preparing && focusedShip == Just ship)
 
 
 generateShipsSvg grid ships focusedShip model =
