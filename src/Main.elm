@@ -80,7 +80,7 @@ initModel model turn =
                 | matrix = createFreshMatrix
                 , shipsToPlace = shipDefs
                 , ships = Dict.empty
-                , shots = []
+                , shots = Matrix.repeat 10 10 False
                 , cellUnder = Nothing
             }
     in
@@ -98,7 +98,7 @@ init flags =
             { matrix = createFreshMatrix
             , shipsToPlace = shipDefs
             , ships = Dict.empty
-            , shots = []
+            , shots = Matrix.repeat 10 10 False
             , cellUnder = Nothing
             , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#A0A0A0"
             , id = "myBoard"
@@ -107,7 +107,7 @@ init flags =
             { matrix = createFreshMatrix
             , shipsToPlace = shipDefs
             , ships = Dict.empty
-            , shots = []
+            , shots = Matrix.repeat 10 10 False
             , cellUnder = Nothing
             , grid = Grid 10 10 10 1 2 30 { x = 20, y = 20 } "#A0A0A0"
             , id = "cpuBoard"
@@ -273,17 +273,17 @@ viewShot board coord =
 
 viewShots board =
     board.shots
+        |> Matrix.indexedMap (\col row value -> ( col, row, value ))
+        |> Matrix.toArray
+        |> Array.toList
+        |> List.filter (\( _, _, value ) -> value)
+        |> List.map (\( col, row, _ ) -> { col = col, row = row })
         |> List.map (viewShot board)
 
 
-isAShotCoord : GridCoord -> Board -> Bool
-isAShotCoord coord board =
-    let
-        shots =
-            board.shots
-                |> List.filter (\shot -> shot == coord)
-    in
-    List.length shots > 0
+isAShotCoord : Board -> GridCoord -> Bool
+isAShotCoord board coord =
+    Matrix.get coord.col coord.row board.shots == Ok True
 
 
 viewCpuBoard model =
@@ -315,7 +315,7 @@ viewCpuBoard model =
             in
             case ( maybeCoord, model.state ) of
                 ( Just coord, Playing Player ) ->
-                    if isAShotCoord coord board then
+                    if isAShotCoord board coord then
                         []
 
                     else
@@ -372,6 +372,50 @@ viewBoards model =
         [ viewMe model
         , viewCpu model
         ]
+
+
+surroundCellByShots : GridCoord -> Board -> Board
+surroundCellByShots { col, row } board =
+    let
+        writeSurroundedCellIfEmpty ( cellCol, cellRow ) matrix =
+            Matrix.set cellCol cellRow True matrix
+
+        newShots =
+            board.shots
+                |> writeSurroundedCellIfEmpty ( col - 1, row )
+                |> writeSurroundedCellIfEmpty ( col - 1, row - 1 )
+                |> writeSurroundedCellIfEmpty ( col, row - 1 )
+                |> writeSurroundedCellIfEmpty ( col + 1, row - 1 )
+                |> writeSurroundedCellIfEmpty ( col + 1, row )
+                |> writeSurroundedCellIfEmpty ( col + 1, row + 1 )
+                |> writeSurroundedCellIfEmpty ( col, row + 1 )
+                |> writeSurroundedCellIfEmpty ( col - 1, row + 1 )
+    in
+    { board | shots = newShots }
+
+
+surroundShipByShots : List GridCoord -> Board -> Board
+surroundShipByShots shipCells board =
+    List.foldl surroundCellByShots board shipCells
+
+
+completeUncessaryShotsForShip : String -> Ship -> Board -> Board
+completeUncessaryShotsForShip _ ship board =
+    let
+        shipCells =
+            GenLevel.computeShipCellPositions ship
+    in
+    if List.all (isAShotCoord board) shipCells then
+        surroundShipByShots shipCells board
+
+    else
+        board
+
+
+completeUncessaryShots : Board -> Board
+completeUncessaryShots board =
+    board.ships
+        |> Dict.foldl completeUncessaryShotsForShip board
 
 
 viewInformationMessage : Model -> Element Msg
@@ -779,7 +823,7 @@ mouseDownCpuBoard event model =
         cell =
             Grid.getClosestCell model.currentMousePos model.cpuBoard.grid
     in
-    if isAShotCoord cell model.cpuBoard then
+    if isAShotCoord model.cpuBoard cell then
         model
 
     else
@@ -1028,7 +1072,8 @@ playerFire model =
         ( newBoard, nextTurn ) =
             case model.firingCell of
                 Just coord ->
-                    ( { board | shots = coord :: board.shots }
+                    ( { board | shots = Matrix.set coord.col coord.row True board.shots }
+                        |> completeUncessaryShots
                     , if belongsToShip board coord then
                         Player
 
@@ -1044,13 +1089,13 @@ playerFire model =
 
 getCandidateCells : Board -> List GridCoord
 getCandidateCells board =
-    let
-        writeShot coord matrix =
-            Matrix.set coord.col coord.row False matrix
-    in
+    -- let
+    --     writeShot coord matrix =
+    --         Matrix.set coord.col coord.row False matrix
+    -- in
     board.shots
-        |> List.foldl writeShot (Matrix.repeat 10 10 True)
-        |> Matrix.indexedMap (\col row value -> ( { col = col, row = row }, value ))
+        --        |> List.foldl writeShot (Matrix.repeat 10 10 True)
+        |> Matrix.indexedMap (\col row value -> ( { col = col, row = row }, not value ))
         |> Matrix.toArray
         |> Array.toList
         |> List.filter (\( _, value ) -> value)
@@ -1117,7 +1162,7 @@ update msg model =
                     model.myBoard
 
                 newBoard =
-                    { board | shots = cellCoord :: board.shots }
+                    { board | shots = Matrix.set cellCoord.col cellCoord.row True board.shots }
             in
             ( { model | myBoard = newBoard, state = Playing Player }, Cmd.none )
 

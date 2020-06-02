@@ -39,7 +39,7 @@ type alias Board =
     { matrix : Matrix CellType
     , shipsToPlace : List ShipDef
     , ships : Dict String Ship
-    , shots : List GridCoord
+    , shots : Matrix Bool
     , cellUnder : Maybe GridCoord
     , grid : Grid
     , id : String
