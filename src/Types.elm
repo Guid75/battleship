@@ -79,6 +79,7 @@ type Msg
     | SvgMousePosResult ( String, Float, Float )
     | GetCellCandidate GridCoord
     | Tick Time.Posix
+    | PlayCPU
 
 
 type alias ShipDef =

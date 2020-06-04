@@ -20,13 +20,21 @@ import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Html.Events.Extra.Mouse as Mouse
 import Matrix exposing (Matrix)
+import Process
 import Random
 import Random.List
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
+import Task
 import Time
 import Types exposing (Board, CellType(..), CpuFireEngine, Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Ship, ShipDef, State(..), Turn(..))
+
+
+delay : Float -> Msg -> Cmd Msg
+delay time msg =
+    Process.sleep time
+        |> Task.perform (\_ -> msg)
 
 
 animator : Animator.Animator Model
@@ -1102,8 +1110,48 @@ getCandidateCells board =
         |> List.map (\( coord, _ ) -> coord)
 
 
-cpuFire : Model -> ( Model, Cmd Msg )
-cpuFire model =
+getAllShipShots : Ship -> Board -> List GridCoord
+getAllShipShots ship board =
+    GenLevel.computeShipCellPositions ship
+        |> List.filter (\cellCoord -> isAShotCoord board cellCoord)
+
+
+isUnfinishedShip : Ship -> Board -> Bool
+isUnfinishedShip ship board =
+    let
+        shipCells =
+            GenLevel.computeShipCellPositions ship
+
+        shipLen =
+            List.length shipCells
+
+        successfulShots =
+            getAllShipShots ship board
+
+        successfulLen =
+            List.length successfulShots
+    in
+    successfulLen < shipLen && successfulLen > 0
+
+
+findUnfinishedShip : Board -> Maybe Ship
+findUnfinishedShip board =
+    let
+        unfinishedShips =
+            board.ships
+                |> Dict.filter (\_ ship -> isUnfinishedShip ship board)
+                |> Dict.values
+    in
+    case unfinishedShips of
+        head :: _ ->
+            Just head
+
+        [] ->
+            Nothing
+
+
+cpuFireRandomShip : Model -> ( Model, Cmd Msg )
+cpuFireRandomShip model =
     case getCandidateCells model.myBoard of
         head :: tail ->
             let
@@ -1115,6 +1163,217 @@ cpuFire model =
 
         [] ->
             ( model, Cmd.none )
+
+
+cpuFireSingleCell : Ship -> GridCoord -> Model -> ( Model, Cmd Msg )
+cpuFireSingleCell ship { col, row } model =
+    let
+        shots =
+            model.myBoard.shots
+
+        addCellIfEmpty coord cells =
+            if Matrix.get coord.col coord.row shots == Ok False then
+                coord :: cells
+
+            else
+                cells
+
+        candidateCells =
+            []
+                |> addCellIfEmpty { col = col - 1, row = row }
+                |> addCellIfEmpty { col = col, row = row - 1 }
+                |> addCellIfEmpty { col = col + 1, row = row }
+                |> addCellIfEmpty { col = col, row = row + 1 }
+    in
+    case candidateCells of
+        head :: tail ->
+            let
+                coordGenerator : Random.Generator GridCoord
+                coordGenerator =
+                    Random.uniform head tail
+            in
+            ( model, Random.generate GetCellCandidate coordGenerator )
+
+        [] ->
+            ( model, Cmd.none )
+
+
+cpuFireMultiCell : Ship -> ( GridCoord, GridCoord ) -> Model -> ( Model, Cmd Msg )
+cpuFireMultiCell ship ( coord1, coord2 ) model =
+    let
+        shots =
+            model.myBoard.shots
+
+        maybeCandidate1 =
+            case ship.dir of
+                North ->
+                    if Matrix.get coord1.col (coord1.row - 1) shots == Ok False then
+                        Just { col = coord1.col, row = coord1.row - 1 }
+
+                    else
+                        Nothing
+
+                South ->
+                    if Matrix.get coord1.col (coord1.row - 1) shots == Ok False then
+                        Just { col = coord1.col, row = coord1.row - 1 }
+
+                    else
+                        Nothing
+
+                East ->
+                    if Matrix.get (coord1.col - 1) coord1.row shots == Ok False then
+                        Just { col = coord1.col - 1, row = coord1.row }
+
+                    else
+                        Nothing
+
+                West ->
+                    if Matrix.get (coord1.col - 1) coord1.row shots == Ok False then
+                        Just { col = coord1.col - 1, row = coord1.row }
+
+                    else
+                        Nothing
+
+        maybeCandidate2 =
+            case ship.dir of
+                North ->
+                    if Matrix.get coord1.col (coord1.row + 1) shots == Ok False then
+                        Just { col = coord1.col, row = coord1.row + 1 }
+
+                    else
+                        Nothing
+
+                South ->
+                    if Matrix.get coord1.col (coord1.row + 1) shots == Ok False then
+                        Just { col = coord1.col, row = coord1.row + 1 }
+
+                    else
+                        Nothing
+
+                East ->
+                    if Matrix.get (coord1.col + 1) coord1.row shots == Ok False then
+                        Just { col = coord1.col + 1, row = coord1.row }
+
+                    else
+                        Nothing
+
+                West ->
+                    if Matrix.get (coord1.col + 1) coord1.row shots == Ok False then
+                        Just { col = coord1.col + 1, row = coord1.row }
+
+                    else
+                        Nothing
+
+        candidateCells =
+            [ maybeCandidate1, maybeCandidate2 ]
+                |> List.foldr
+                    (\maybeCand res ->
+                        case maybeCand of
+                            Nothing ->
+                                res
+
+                            Just cand ->
+                                cand :: res
+                    )
+                    []
+    in
+    case candidateCells of
+        head :: tail ->
+            let
+                coordGenerator : Random.Generator GridCoord
+                coordGenerator =
+                    Random.uniform head tail
+            in
+            ( model, Random.generate GetCellCandidate coordGenerator )
+
+        [] ->
+            ( model, Cmd.none )
+
+
+cpuFireUnfinishedShip : Ship -> Model -> ( Model, Cmd Msg )
+cpuFireUnfinishedShip ship model =
+    let
+        shotCoords =
+            getAllShipShots ship model.myBoard
+
+        getDistance : GridCoord -> GridCoord -> Int
+        getDistance coord1 coord2 =
+            let
+                a =
+                    coord1.col - coord2.col
+
+                b =
+                    coord1.row - coord2.row
+            in
+            a * a + b * b
+
+        createContinuousBinomes gridCoord ( binomes, maybeBinome ) =
+            case maybeBinome of
+                Nothing ->
+                    ( binomes, Just ( gridCoord, gridCoord ) )
+
+                Just ( coord1, coord2 ) ->
+                    if getDistance coord2 gridCoord == 1 then
+                        ( binomes, Just ( coord1, gridCoord ) )
+
+                    else
+                        ( ( coord1, coord2 ) :: binomes, Just ( gridCoord, gridCoord ) )
+
+        sortedCoords =
+            case ship.dir of
+                North ->
+                    List.sortBy .row shotCoords
+
+                South ->
+                    List.sortBy .row shotCoords
+
+                East ->
+                    List.sortBy .col shotCoords
+
+                West ->
+                    List.sortBy .col shotCoords
+
+        continuousBinomes =
+            case List.foldl createContinuousBinomes ( [], Nothing ) sortedCoords of
+                ( binomes, Nothing ) ->
+                    binomes
+
+                ( binomes, Just binome ) ->
+                    binome :: binomes
+    in
+    case continuousBinomes of
+        [] ->
+            ( model, Cmd.none )
+
+        head :: _ ->
+            case getDistance (Tuple.first head) (Tuple.second head) of
+                0 ->
+                    cpuFireSingleCell ship (Tuple.first head) model
+
+                _ ->
+                    cpuFireMultiCell ship head model
+
+
+
+-- case getAllShipShots ship model.myBoard of
+--     head :: [] ->
+--         cpuFireSingleCell ship head model
+--     tail ->
+--         cpuFireMultiCell ship tail model
+
+
+cpuFire : Model -> ( Model, Cmd Msg )
+cpuFire model =
+    let
+        maybeUnfinishedShip =
+            findUnfinishedShip model.myBoard
+    in
+    case findUnfinishedShip model.myBoard of
+        Just unfinishedShip ->
+            cpuFireUnfinishedShip unfinishedShip model
+
+        _ ->
+            cpuFireRandomShip model
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -1156,15 +1415,38 @@ update msg model =
         SvgMousePosResult pos ->
             ( mouseMove pos model, Cmd.none )
 
+        PlayCPU ->
+            cpuFire model
+
         GetCellCandidate cellCoord ->
             let
                 board =
                     model.myBoard
 
+                isBelongToShip =
+                    belongsToShip model.myBoard cellCoord
+
                 newBoard =
                     { board | shots = Matrix.set cellCoord.col cellCoord.row True board.shots }
+
+                newModel =
+                    { model
+                        | myBoard = newBoard
+                        , state =
+                            if isBelongToShip then
+                                Playing CPU
+
+                            else
+                                Playing Player
+                    }
             in
-            ( { model | myBoard = newBoard, state = Playing Player }, Cmd.none )
+            ( newModel
+            , if isBelongToShip then
+                delay 1 PlayCPU
+
+              else
+                Cmd.none
+            )
 
         Tick newTime ->
             let
@@ -1181,7 +1463,7 @@ update msg model =
 
                 ( newNewModel, cmd ) =
                     if newModel.state == Playing CPU then
-                        cpuFire newModel
+                        ( newModel, delay 1 PlayCPU )
 
                     else
                         ( newModel, Cmd.none )
