@@ -301,7 +301,7 @@ viewCpuVeil modelState =
             , y "0"
             , Svg.Attributes.width "350"
             , Svg.Attributes.height "350"
-            , Svg.Attributes.fill "#80808080"
+            , Svg.Attributes.fill "#80808060"
             ]
             []
         ]
@@ -317,7 +317,7 @@ viewPlayerVeil modelState =
             , y "0"
             , Svg.Attributes.width "350"
             , Svg.Attributes.height "350"
-            , Svg.Attributes.fill "#80808080"
+            , Svg.Attributes.fill "#80808060"
             ]
             []
         ]
