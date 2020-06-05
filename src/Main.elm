@@ -264,7 +264,7 @@ viewMyBoard model =
         , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], svgShips, viewShots model.myBoard, phantomShip ]
+        List.concat [ [ drawGrid grid [] ], svgShips, viewShots model.myBoard, phantomShip, viewPlayerVeil model.state ]
 
 
 belongsToShip board coord =
@@ -292,6 +292,38 @@ viewShots board =
 isAShotCoord : Matrix Bool -> GridCoord -> Bool
 isAShotCoord shots coord =
     Matrix.get coord.col coord.row shots == Ok True
+
+
+viewCpuVeil modelState =
+    if modelState == Preparing || modelState == Playing CPU then
+        [ rect
+            [ x "0"
+            , y "0"
+            , Svg.Attributes.width "350"
+            , Svg.Attributes.height "350"
+            , Svg.Attributes.fill "#80808080"
+            ]
+            []
+        ]
+
+    else
+        []
+
+
+viewPlayerVeil modelState =
+    if modelState == Playing Player then
+        [ rect
+            [ x "0"
+            , y "0"
+            , Svg.Attributes.width "350"
+            , Svg.Attributes.height "350"
+            , Svg.Attributes.fill "#80808080"
+            ]
+            []
+        ]
+
+    else
+        []
 
 
 viewCpuBoard model =
@@ -339,7 +371,7 @@ viewCpuBoard model =
     svg
         [ id board.id
         , Svg.Attributes.width "350"
-        , height "350"
+        , Svg.Attributes.height "350"
 
         --        , viewBox "0 0 400 350"
         , Mouse.onMove (MouseMove board.id)
@@ -347,7 +379,7 @@ viewCpuBoard model =
         , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], viewShots model.cpuBoard, cellUnderSvg ]
+        List.concat [ [ drawGrid grid [] ], viewShots model.cpuBoard, cellUnderSvg, viewCpuVeil model.state ]
 
 
 viewMe model =
