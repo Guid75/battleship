@@ -1383,8 +1383,8 @@ cpuFire model =
             ( model, Cmd.none )
 
 
-shipSunk : Matrix Bool -> Ship -> Bool
-shipSunk shots ship =
+isShipSunk : Matrix Bool -> Ship -> Bool
+isShipSunk shots ship =
     let
         shipShots =
             getAllShipShots ship shots
@@ -1392,18 +1392,18 @@ shipSunk shots ship =
     List.length shipShots == ship.size
 
 
-allShipSunk : Board -> Bool
-allShipSunk board =
+areAllShipsSunk : Board -> Bool
+areAllShipsSunk board =
     Dict.values board.ships
-        |> List.all (shipSunk board.shots)
+        |> List.all (isShipSunk board.shots)
 
 
 checkForEnd : Model -> Model
 checkForEnd model =
-    if allShipSunk model.myBoard then
+    if areAllShipsSunk model.myBoard then
         { model | state = End CPU }
 
-    else if allShipSunk model.cpuBoard then
+    else if areAllShipsSunk model.cpuBoard then
         { model | state = End Player }
 
     else

@@ -6,7 +6,7 @@ const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin')
 const CopyPlugin = require('copy-webpack-plugin')
 
 module.exports = (env, options) => ({
-  mode: "development",
+  mode: "production",
   entry: './src/index.js',
   output: {
     filename: 'js/app.js',
@@ -29,11 +29,11 @@ module.exports = (env, options) => ({
         test: /\.elm$/,
         exclude: [/elm-stuff/, /node_modules/],
         use: [
-          { loader: 'elm-hot-webpack-loader' },
           {
             loader: 'elm-webpack-loader',
             options: {
-              cwd: __dirname
+              cwd: __dirname,
+              optimize: true
             }
           }
         ]
