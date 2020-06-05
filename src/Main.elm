@@ -846,7 +846,10 @@ mouseDownCpuBoard event model =
         cell =
             Grid.getClosestCell model.currentMousePos model.cpuBoard.grid
     in
-    if isAShotCoord model.cpuBoard.shots cell then
+    if model.state /= Playing Player then
+        model
+
+    else if isAShotCoord model.cpuBoard.shots cell then
         model
 
     else
@@ -1456,7 +1459,7 @@ update msg model =
                         |> checkForEnd
             in
             ( newModel
-            , if isBelongToShip then
+            , if isBelongToShip && newModel.state == Playing CPU then
                 delay 1000 PlayCPU
 
               else
