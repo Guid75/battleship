@@ -72,8 +72,8 @@ createFreshMatrix =
     Matrix.repeat 10 10 Free
 
 
-initModel : Model -> Turn -> Model
-initModel model turn =
+initModel : Turn -> Model -> Model
+initModel turn model =
     let
         board =
             case turn of
@@ -289,9 +289,9 @@ viewShots board =
         |> List.map (viewShot board)
 
 
-isAShotCoord : Board -> GridCoord -> Bool
-isAShotCoord board coord =
-    Matrix.get coord.col coord.row board.shots == Ok True
+isAShotCoord : Matrix Bool -> GridCoord -> Bool
+isAShotCoord shots coord =
+    Matrix.get coord.col coord.row shots == Ok True
 
 
 viewCpuBoard model =
@@ -323,7 +323,7 @@ viewCpuBoard model =
             in
             case ( maybeCoord, model.state ) of
                 ( Just coord, Playing Player ) ->
-                    if isAShotCoord board coord then
+                    if isAShotCoord board.shots coord then
                         []
 
                     else
@@ -413,7 +413,7 @@ completeUnnecessaryShotsForShip _ ship board =
         shipCells =
             GenLevel.computeShipCellPositions ship
     in
-    if List.all (isAShotCoord board) shipCells then
+    if List.all (isAShotCoord board.shots) shipCells then
         surroundShipByShots shipCells board
 
     else
@@ -440,8 +440,11 @@ viewInformationMessage model =
                 Playing CPU ->
                     "Wait for your opponent hit"
 
-                _ ->
-                    "blabla"
+                End Player ->
+                    "You win!"
+
+                End CPU ->
+                    "The computer wins!"
     in
     el
         [ centerX
@@ -478,6 +481,18 @@ viewControlBar model =
                     , Border.width 1
                     ]
                     { label = Element.text "Let's play", onPress = Just <| Launch }
+                ]
+
+        End _ ->
+            row
+                [ centerX, Element.spacing 6 ]
+                [ Input.button
+                    [ Background.color <| Element.rgb 0.9 0.9 1
+                    , padding 4
+                    , Border.solid
+                    , Border.width 1
+                    ]
+                    { label = Element.text "New game", onPress = Just <| NewGame }
                 ]
 
         _ ->
@@ -831,7 +846,7 @@ mouseDownCpuBoard event model =
         cell =
             Grid.getClosestCell model.currentMousePos model.cpuBoard.grid
     in
-    if isAShotCoord model.cpuBoard cell then
+    if isAShotCoord model.cpuBoard.shots cell then
         model
 
     else
@@ -1093,6 +1108,7 @@ playerFire model =
                     ( board, Player )
     in
     { model | cpuBoard = newBoard, state = Playing nextTurn }
+        |> checkForEnd
 
 
 getShotRandomCandidateCells : Board -> List GridCoord
@@ -1105,10 +1121,10 @@ getShotRandomCandidateCells board =
         |> List.map (\( coord, _ ) -> coord)
 
 
-getAllShipShots : Ship -> Board -> List GridCoord
-getAllShipShots ship board =
+getAllShipShots : Ship -> Matrix Bool -> List GridCoord
+getAllShipShots ship shots =
     GenLevel.computeShipCellPositions ship
-        |> List.filter (\cellCoord -> isAShotCoord board cellCoord)
+        |> List.filter (\cellCoord -> isAShotCoord shots cellCoord)
 
 
 isUnfinishedShip : Ship -> Board -> Bool
@@ -1121,7 +1137,7 @@ isUnfinishedShip ship board =
             List.length shipCells
 
         successfulShots =
-            getAllShipShots ship board
+            getAllShipShots ship board.shots
 
         successfulLen =
             List.length successfulShots
@@ -1248,7 +1264,7 @@ getShotsForUnfinishedShip : Ship -> Model -> List GridCoord
 getShotsForUnfinishedShip ship model =
     let
         shotCoords =
-            getAllShipShots ship model.myBoard
+            getAllShipShots ship model.myBoard.shots
 
         getDistance : GridCoord -> GridCoord -> Int
         getDistance coord1 coord2 =
@@ -1332,6 +1348,33 @@ cpuFire model =
             ( model, Cmd.none )
 
 
+shipSunk : Matrix Bool -> Ship -> Bool
+shipSunk shots ship =
+    let
+        shipShots =
+            getAllShipShots ship shots
+    in
+    List.length shipShots == ship.size
+
+
+allShipSunk : Board -> Bool
+allShipSunk board =
+    Dict.values board.ships
+        |> List.all (shipSunk board.shots)
+
+
+checkForEnd : Model -> Model
+checkForEnd model =
+    if allShipSunk model.myBoard then
+        { model | state = End CPU }
+
+    else if allShipSunk model.cpuBoard then
+        { model | state = End Player }
+
+    else
+        model
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -1339,10 +1382,24 @@ update msg model =
         GetCoordAndDirection turn ( pos, dir ) ->
             iterPlacement turn pos dir model
 
+        NewGame ->
+            let
+                newModel =
+                    model
+                        |> initModel Player
+                        |> initModel CPU
+            in
+            ( { newModel | state = Preparing }
+            , Cmd.batch
+                [ GenLevel.randomizeShipPlacements Player <| GenLevel.createShipStartCouples 0 0 9 9
+                , GenLevel.randomizeShipPlacements CPU <| GenLevel.createShipStartCouples 0 0 9 9
+                ]
+            )
+
         Generate turn ->
             let
                 newModel =
-                    initModel model turn
+                    initModel turn model
             in
             ( newModel, GenLevel.randomizeShipPlacements turn <| GenLevel.createShipStartCouples 0 0 9 9 )
 
@@ -1396,6 +1453,7 @@ update msg model =
                             else
                                 Playing Player
                     }
+                        |> checkForEnd
             in
             ( newModel
             , if isBelongToShip then

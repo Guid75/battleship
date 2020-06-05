@@ -32,7 +32,7 @@ type Turn
 type State
     = Preparing
     | Playing Turn
-    | End
+    | End Turn
 
 
 type alias Board =
@@ -80,6 +80,7 @@ type Msg
     | GetCellCandidate GridCoord
     | Tick Time.Posix
     | PlayCPU
+    | NewGame
 
 
 type alias ShipDef =
