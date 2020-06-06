@@ -11,7 +11,7 @@ import Array
 import Matrix exposing (Matrix)
 import Random
 import Random.List
-import Types exposing (CellType(..), Direction(..), GridCoord, Model, Msg(..), Ship, Turn)
+import Types exposing (CellType(..), Direction(..), GridCoord, Msg(..), Ship, Turn)
 
 
 directionGenerator : Random.Generator Direction
