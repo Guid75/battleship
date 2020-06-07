@@ -258,7 +258,6 @@ viewMyBoard model =
         [ id board.id
         , Svg.Attributes.width "350"
         , height "350"
-        , viewBox "0 0 350 350"
         , Mouse.onMove (MouseMove board.id)
         , Mouse.onDown (MouseDown board.id)
         , Mouse.onUp (MouseUp board.id)
@@ -372,8 +371,6 @@ viewCpuBoard model =
         [ id board.id
         , Svg.Attributes.width "350"
         , Svg.Attributes.height "350"
-
-        --        , viewBox "0 0 400 350"
         , Mouse.onMove (MouseMove board.id)
         , Mouse.onDown (MouseDown board.id)
         , Mouse.onUp (MouseUp board.id)
