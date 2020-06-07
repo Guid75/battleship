@@ -1502,7 +1502,7 @@ update msg model =
                         |> Animator.update newTime animator
 
                 ( newModel, cmd ) =
-                    if Animator.previous animModel.firing && not (Animator.previous model.firing) then
+                    if Animator.arrivedAt True newTime model.firing then
                         let
                             afterFireModel =
                                 playerFire animModel
