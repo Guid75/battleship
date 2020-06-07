@@ -508,6 +508,7 @@ viewControlBar model =
                     , padding 4
                     , Border.solid
                     , Border.width 1
+                    , Font.bold
                     ]
                     { label = Element.text "Let's play", onPress = Just <| Launch }
                 ]
