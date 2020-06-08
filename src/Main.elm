@@ -138,34 +138,6 @@ init flags =
     )
 
 
-displayRow : Matrix CellType -> Int -> Html msg
-displayRow matrix rowIndex =
-    let
-        cellTypeToHtml cellType =
-            case cellType of
-                Occupied ->
-                    span [] [ Html.text "O" ]
-
-                NextTo ->
-                    span [] [ Html.text "|" ]
-
-                Free ->
-                    span [] [ Html.text "." ]
-    in
-    case Matrix.getRow rowIndex matrix of
-        Ok row ->
-            div
-                []
-            <|
-                Array.toList <|
-                    Array.map (\cellType -> cellTypeToHtml cellType) row
-
-        Err _ ->
-            div
-                []
-                []
-
-
 shipToSvg grid ship focusedShip model =
     case ( model.clickedShip, model.draggingShip ) of
         ( Just clickedShip, True ) ->
