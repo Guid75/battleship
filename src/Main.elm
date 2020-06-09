@@ -138,7 +138,11 @@ init flags =
     )
 
 
-shipToSvg grid ship focusedShip model =
+cpuShipToSvg grid ship =
+    shipToSvg grid ship
+
+
+myShipToSvg grid ship focusedShip model =
     case ( model.clickedShip, model.draggingShip ) of
         ( Just clickedShip, True ) ->
             if clickedShip.id == ship.id then
@@ -175,6 +179,24 @@ regularShipToSvg grid ship focusedShip model =
     Figures.drawShip ship grid (model.state == Preparing && focusedShip == Just ship)
 
 
+shipToSvg grid ship =
+    Figures.drawShip ship grid False
+
+
+generateShipsCpuSvg grid ships board =
+    ships
+        |> Dict.values
+        |> List.filter
+            (\myShip ->
+                let
+                    shots =
+                        getAllShipShots myShip board.shots
+                in
+                List.length shots == myShip.size
+            )
+        |> List.map (\ship -> cpuShipToSvg grid ship)
+
+
 generateShipsSvg grid ships focusedShip model =
     ships
         |> Dict.values
@@ -187,7 +209,7 @@ generateShipsSvg grid ships focusedShip model =
                     Just ship ->
                         (ship.id /= myShip.id) || isShipAllowedToBeThere model.myBoard myShip
             )
-        |> List.map (\ship -> shipToSvg grid ship focusedShip model)
+        |> List.map (\ship -> myShipToSvg grid ship focusedShip model)
 
 
 generatePhantomShip grid board model =
@@ -305,6 +327,9 @@ viewCpuBoard model =
         grid =
             board.grid
 
+        svgShips =
+            generateShipsCpuSvg grid board.ships board
+
         cellUnderMouseSvg =
             let
                 maybeCoord =
@@ -348,7 +373,7 @@ viewCpuBoard model =
         , Mouse.onUp (MouseUp board.id)
         ]
     <|
-        List.concat [ [ drawGrid grid [] ], viewShots model.cpuBoard, cellUnderMouseSvg, viewCpuVeil model.state ]
+        List.concat [ [ drawGrid grid [] ], svgShips, viewShots model.cpuBoard, cellUnderMouseSvg, viewCpuVeil model.state ]
 
 
 viewMe model =
@@ -1166,8 +1191,8 @@ findUnfinishedShip board =
             Nothing
 
 
-getShotsForSingleCell : Ship -> GridCoord -> Model -> List GridCoord
-getShotsForSingleCell ship { col, row } model =
+getShotCandidatesForSingleCell : Ship -> GridCoord -> Model -> List GridCoord
+getShotCandidatesForSingleCell ship { col, row } model =
     let
         shots =
             model.myBoard.shots
@@ -1186,8 +1211,8 @@ getShotsForSingleCell ship { col, row } model =
         |> addCellIfEmpty { col = col, row = row + 1 }
 
 
-getShotsForMultiCell : Ship -> ( GridCoord, GridCoord ) -> Model -> List GridCoord
-getShotsForMultiCell ship ( coord1, coord2 ) model =
+getShotCandidatesForMultiCell : Ship -> ( GridCoord, GridCoord ) -> Model -> List GridCoord
+getShotCandidatesForMultiCell ship ( coord1, coord2 ) model =
     let
         shots =
             model.myBoard.shots
@@ -1265,8 +1290,8 @@ getShotsForMultiCell ship ( coord1, coord2 ) model =
             []
 
 
-getShotsForUnfinishedShip : Ship -> Model -> List GridCoord
-getShotsForUnfinishedShip ship model =
+getShotCandidatesForUnfinishedShip : Ship -> Model -> List GridCoord
+getShotCandidatesForUnfinishedShip ship model =
     let
         shotCoords =
             getAllShipShots ship model.myBoard.shots
@@ -1323,10 +1348,10 @@ getShotsForUnfinishedShip ship model =
         head :: _ ->
             case getDistance (Tuple.first head) (Tuple.second head) of
                 0 ->
-                    getShotsForSingleCell ship (Tuple.first head) model
+                    getShotCandidatesForSingleCell ship (Tuple.first head) model
 
                 _ ->
-                    getShotsForMultiCell ship head model
+                    getShotCandidatesForMultiCell ship head model
 
 
 cpuFire : Model -> ( Model, Cmd Msg )
@@ -1335,7 +1360,7 @@ cpuFire model =
         candidateCells =
             case findUnfinishedShip model.myBoard of
                 Just unfinishedShip ->
-                    getShotsForUnfinishedShip unfinishedShip model
+                    getShotCandidatesForUnfinishedShip unfinishedShip model
 
                 _ ->
                     getShotRandomCandidateCells model.myBoard
