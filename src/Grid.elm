@@ -39,15 +39,24 @@ drawVerticalLine grid colIndex lines =
     let
         x =
             getNthLineOffset grid colIndex
+
+        props =
+            [ x1 <| String.fromFloat <| x + grid.topLeft.x
+            , y1 <| String.fromFloat grid.topLeft.y
+            , x2 <| String.fromFloat <| x + grid.topLeft.x
+            , y2 <| String.fromFloat <| computeGridHeight grid + grid.topLeft.y
+            , stroke grid.strokeColor
+            ]
+
+        newProps =
+            if modBy grid.boldInterval colIndex /= 0 then
+                Svg.Attributes.strokeDasharray "1 1" :: props
+
+            else
+                props
     in
     line
-        [ x1 <| String.fromFloat <| x + grid.topLeft.x
-        , y1 <| String.fromFloat grid.topLeft.y
-        , x2 <| String.fromFloat <| x + grid.topLeft.x
-        , y2 <| String.fromFloat <| computeGridHeight grid + grid.topLeft.y
-        , stroke grid.strokeColor
-        , strokeWidth <| String.fromFloat <| getThicknessByIndex grid colIndex
-        ]
+        newProps
         []
         :: lines
 
@@ -57,15 +66,25 @@ drawHorizontalLine grid rowIndex lines =
     let
         y =
             getNthLineOffset grid rowIndex
+
+        props =
+            [ x1 <| String.fromFloat grid.topLeft.x
+            , y1 <| String.fromFloat <| y + grid.topLeft.y
+            , x2 <| String.fromFloat <| computeGridWidth grid + grid.topLeft.x
+            , y2 <| String.fromFloat <| y + grid.topLeft.y
+            , stroke grid.strokeColor
+            , strokeWidth <| String.fromFloat <| getThicknessByIndex grid rowIndex
+            ]
+
+        newProps =
+            if modBy grid.boldInterval rowIndex /= 0 then
+                Svg.Attributes.strokeDasharray "1 1" :: props
+
+            else
+                props
     in
     line
-        [ x1 <| String.fromFloat grid.topLeft.x
-        , y1 <| String.fromFloat <| y + grid.topLeft.y
-        , x2 <| String.fromFloat <| computeGridWidth grid + grid.topLeft.x
-        , y2 <| String.fromFloat <| y + grid.topLeft.y
-        , stroke grid.strokeColor
-        , strokeWidth <| String.fromFloat <| getThicknessByIndex grid rowIndex
-        ]
+        newProps
         []
         :: lines
 
