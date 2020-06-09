@@ -55,7 +55,7 @@ drawMiss grid { col, row } =
     Svg.circle
         [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
         , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
-        , r <| String.fromFloat <| grid.cellSize / 2.0 - 4.0
+        , r <| String.fromFloat <| grid.cellSize / 2.0 - 8.0
         , fill <| Color.toCssString Color.blue
         , strokeWidth "2.0"
         ]
