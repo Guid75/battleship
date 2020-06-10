@@ -1,4 +1,4 @@
-module GenLevel exposing
+module ShipGen exposing
     ( computeAvailableCells
     , computeShipCellPositions
     , createShipStartCouples
