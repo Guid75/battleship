@@ -142,8 +142,8 @@ writeShip ship gameMatrix =
     List.foldl writeShipCell gameMatrix shipCellPositions
 
 
-nextDir : Direction -> Direction
-nextDir dir =
+rotateDir : Direction -> Direction
+rotateDir dir =
     case dir of
         North ->
             East
@@ -162,13 +162,13 @@ tryToPlace : Ship -> Matrix CellType -> ( Matrix CellType, Maybe Ship )
 tryToPlace ship matrix =
     let
         dir2 =
-            ship.dir |> nextDir
+            ship.dir |> rotateDir
 
         dir3 =
-            ship.dir |> nextDir |> nextDir
+            ship.dir |> rotateDir |> rotateDir
 
         dir4 =
-            ship.dir |> nextDir |> nextDir |> nextDir
+            ship.dir |> rotateDir |> rotateDir |> rotateDir
 
         ship2 =
             { ship | dir = dir2 }
