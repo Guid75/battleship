@@ -19,6 +19,7 @@ import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Html.Events.Extra.Mouse as Mouse
 import Matrix exposing (Matrix)
+import Model exposing (Board, Model, Msg(..), State(..), Turn(..))
 import Process
 import Random
 import Random.List
@@ -28,7 +29,7 @@ import Svg.Attributes exposing (..)
 import Svg.Events exposing (..)
 import Task
 import Time
-import Types exposing (Board, CellType(..), CpuFireEngine, Direction(..), FloatCoord, Grid, GridCoord, GridSize, Model, Msg(..), Ship, ShipDef, State(..), Turn(..))
+import Types exposing (Direction(..), FloatCoord, Grid, GridCoord, GridSize, Ship, ShipDef)
 
 
 delay : Float -> Msg -> Cmd Msg
@@ -67,11 +68,6 @@ main =
         }
 
 
-createFreshMatrix : Matrix CellType
-createFreshMatrix =
-    Matrix.repeat 10 10 Free
-
-
 initModel : Turn -> Model -> Model
 initModel turn model =
     let
@@ -85,8 +81,7 @@ initModel turn model =
 
         newBoard =
             { board
-                | matrix = createFreshMatrix
-                , shipsToPlace = shipDefs
+                | shipGenerator = ShipGen.createGenerator { width = 10, height = 10 } shipDefs
                 , ships = Dict.empty
                 , shots = Matrix.repeat 10 10 False
                 , cellUnderMouse = Nothing
@@ -102,9 +97,15 @@ initModel turn model =
 
 init : () -> ( Model, Cmd Msg )
 init flags =
+    let
+        playerShipGenerator =
+            ShipGen.createGenerator { width = 10, height = 10 } shipDefs
+
+        cpuShipGenerator =
+            ShipGen.createGenerator { width = 10, height = 10 } shipDefs
+    in
     ( { myBoard =
-            { matrix = createFreshMatrix
-            , shipsToPlace = shipDefs
+            { shipGenerator = playerShipGenerator
             , ships = Dict.empty
             , shots = Matrix.repeat 10 10 False
             , cellUnderMouse = Nothing
@@ -112,8 +113,7 @@ init flags =
             , id = "myBoard"
             }
       , cpuBoard =
-            { matrix = createFreshMatrix
-            , shipsToPlace = shipDefs
+            { shipGenerator = cpuShipGenerator
             , ships = Dict.empty
             , shots = Matrix.repeat 10 10 False
             , cellUnderMouse = Nothing
@@ -129,11 +129,10 @@ init flags =
       , firing = Animator.init False
       , firingCell = Nothing
       , state = Preparing
-      , cpuFireEngine = CpuFireEngine []
       }
     , Cmd.batch
-        [ ShipGen.randomizeShipPlacements Player <| ShipGen.createShipStartCouples 0 0 9 9
-        , ShipGen.randomizeShipPlacements CPU <| ShipGen.createShipStartCouples 0 0 9 9
+        [ ShipGen.run playerShipGenerator GetCoordAndDirectionPlayer
+        , ShipGen.run cpuShipGenerator GetCoordAndDirectionCPU
         ]
     )
 
@@ -333,13 +332,12 @@ viewCpuBoard model =
         cellUnderMouseSvg =
             let
                 maybeCoord =
-                    Debug.log "maybeCoord" <|
-                        case model.firingCell of
-                            Just firingCoord ->
-                                Just firingCoord
+                    case model.firingCell of
+                        Just firingCoord ->
+                            Just firingCoord
 
-                            Nothing ->
-                                board.cellUnderMouse
+                        Nothing ->
+                            board.cellUnderMouse
 
                 -- fireAmount =
                 --     Animator.linear model.firing <|
@@ -356,7 +354,7 @@ viewCpuBoard model =
 
                     else
                         [ Figures.drawTarget
-                            (Debug.log "taarget" grid)
+                            grid
                             coord
                             0
 
@@ -608,59 +606,6 @@ isShipAllowedToBeThere board ship =
                     )
     in
     List.length collidingCells == 0 && List.length outOfScreenCells == 0
-
-
-iterPlacement : Turn -> GridCoord -> Direction -> Model -> ( Model, Cmd Msg )
-iterPlacement turn pos dir model =
-    let
-        board =
-            case turn of
-                Player ->
-                    model.myBoard
-
-                CPU ->
-                    model.cpuBoard
-    in
-    case board.shipsToPlace of
-        head :: tail ->
-            case ShipGen.tryToPlace (Ship pos head.size dir head.id) board.matrix of
-                ( matrix, Just ship ) ->
-                    let
-                        newModel =
-                            case turn of
-                                Player ->
-                                    { model
-                                        | myBoard =
-                                            { board
-                                                | matrix = matrix
-                                                , shipsToPlace = tail
-                                                , ships = Dict.insert head.id ship board.ships
-                                            }
-                                    }
-
-                                CPU ->
-                                    { model
-                                        | cpuBoard =
-                                            { board
-                                                | matrix = matrix
-                                                , shipsToPlace = tail
-                                                , ships = Dict.insert head.id ship board.ships
-                                            }
-                                    }
-                    in
-                    ( newModel
-                    , ShipGen.computeAvailableCells matrix
-                        |> ShipGen.randomizeShipPlacements turn
-                    )
-
-                _ ->
-                    ( model
-                    , ShipGen.computeAvailableCells board.matrix
-                        |> ShipGen.randomizeShipPlacements turn
-                    )
-
-        [] ->
-            ( model, Cmd.none )
 
 
 mouseMoveOnMyBoard : ( Float, Float ) -> Model -> Model
@@ -1090,19 +1035,6 @@ mouseUpCpu event model =
     { model | firingCell = Nothing }
 
 
-
--- case Animator.current model.firing of
---     False ->
---         model
---     _ ->
---         { model
---             | firing =
---                 model.firing
---                     |> Animator.go (Animator.millis 1000) (not <| Animator.current model.firing)
---             , firingCell = Nothing
---         }
-
-
 mouseUp : String -> Mouse.Event -> Model -> Model
 mouseUp boardId event model =
     case boardId of
@@ -1402,7 +1334,7 @@ areAllShipsSunk board =
 
 checkForEnd : Model -> Model
 checkForEnd model =
-    if areAllShipsSunk model.myBoard then
+    if Debug.log "oikk" <| areAllShipsSunk model.myBoard then
         { model | state = End CPU }
 
     else if areAllShipsSunk model.cpuBoard then
@@ -1415,8 +1347,25 @@ checkForEnd model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GetCoordAndDirection turn ( pos, dir ) ->
-            iterPlacement turn pos dir model
+        GetCoordAndDirectionPlayer ( pos, dir ) ->
+            let
+                ( newGenerator, cmd ) =
+                    ShipGen.feed pos dir model.myBoard.shipGenerator GetCoordAndDirectionPlayer
+
+                board =
+                    model.myBoard
+            in
+            ( { model | myBoard = { board | shipGenerator = newGenerator, ships = ShipGen.getProducedShips newGenerator } }, cmd )
+
+        GetCoordAndDirectionCPU ( pos, dir ) ->
+            let
+                ( newGenerator, cmd ) =
+                    ShipGen.feed pos dir model.myBoard.shipGenerator GetCoordAndDirectionCPU
+
+                board =
+                    model.cpuBoard
+            in
+            ( { model | cpuBoard = { board | shipGenerator = newGenerator, ships = ShipGen.getProducedShips newGenerator } }, cmd )
 
         NewGame ->
             let
@@ -1427,8 +1376,8 @@ update msg model =
             in
             ( { newModel | state = Preparing }
             , Cmd.batch
-                [ ShipGen.randomizeShipPlacements Player <| ShipGen.createShipStartCouples 0 0 9 9
-                , ShipGen.randomizeShipPlacements CPU <| ShipGen.createShipStartCouples 0 0 9 9
+                [ ShipGen.run newModel.myBoard.shipGenerator GetCoordAndDirectionPlayer
+                , ShipGen.run newModel.cpuBoard.shipGenerator GetCoordAndDirectionCPU
                 ]
             )
 
@@ -1437,7 +1386,7 @@ update msg model =
                 newModel =
                     initModel turn model
             in
-            ( newModel, ShipGen.randomizeShipPlacements turn <| ShipGen.createShipStartCouples 0 0 9 9 )
+            ( newModel, ShipGen.run newModel.myBoard.shipGenerator GetCoordAndDirectionPlayer )
 
         Launch ->
             ( { model | state = Playing Player }, Cmd.none )

@@ -11,13 +11,14 @@ module Figures exposing
 
 import Color
 import Grid
+import Model exposing (Msg(..))
 import Svg exposing (Svg, g, line, rect)
 import Svg.Attributes exposing (cx, cy, fill, fillOpacity, height, id, r, rx, ry, stroke, strokeWidth, width, x, x1, x2, y, y1, y2)
 import Svg.Events
-import Types exposing (Direction(..), FloatCoord, Grid, GridCoord, GridSize, Msg(..), Ship)
+import Types exposing (Direction(..), FloatCoord, Grid, GridCoord, GridSize, Ship)
 
 
-drawTarget : Grid -> GridCoord -> Float -> Svg Msg
+drawTarget : Grid -> GridCoord -> Float -> Svg msg
 drawTarget grid { col, row } fireAmount =
     let
         cellCoord =
@@ -46,7 +47,7 @@ drawTarget grid { col, row } fireAmount =
         ]
 
 
-drawMiss : Grid -> GridCoord -> Svg Msg
+drawMiss : Grid -> GridCoord -> Svg msg
 drawMiss grid { col, row } =
     let
         cellCoord =
@@ -62,7 +63,7 @@ drawMiss grid { col, row } =
         []
 
 
-drawHit : Grid -> GridCoord -> Svg Msg
+drawHit : Grid -> GridCoord -> Svg msg
 drawHit grid { col, row } =
     let
         cellCoord =
@@ -180,7 +181,7 @@ drawShip ship grid focused =
         []
 
 
-drawShipFloating : Ship -> Grid -> FloatCoord -> Svg Msg
+drawShipFloating : Ship -> Grid -> FloatCoord -> Svg msg
 drawShipFloating ship grid topLeftCellCoord =
     let
         size =
@@ -232,7 +233,7 @@ drawShipFloating ship grid topLeftCellCoord =
         []
 
 
-drawShipPlacement : Ship -> Grid -> Svg Msg
+drawShipPlacement : Ship -> Grid -> Svg msg
 drawShipPlacement ship grid =
     let
         topLeft =

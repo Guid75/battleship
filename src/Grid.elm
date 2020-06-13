@@ -14,7 +14,7 @@ import Html
 import Svg exposing (Svg, g, line, rect)
 import Svg.Attributes exposing (cx, cy, fill, fillOpacity, height, id, r, stroke, strokeWidth, width, x, x1, x2, y, y1, y2)
 import Svg.Events
-import Types exposing (FloatCoord, Grid, GridCoord, GridSize, Msg(..), Rect)
+import Types exposing (FloatCoord, Grid, GridCoord, GridSize, Rect)
 
 
 isInGrid : FloatCoord -> Grid -> Bool

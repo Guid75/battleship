@@ -1,17 +1,100 @@
 module ShipGen exposing
-    ( computeAvailableCells
+    ( Generator
     , computeShipCellPositions
-    , createShipStartCouples
-    , randomizeShipPlacements
-    , tryToPlace
-    , writeShip
+    , createGenerator
+    , feed
+    , getProducedShips
+    , run
     )
 
 import Array
+import Dict exposing (Dict)
 import Matrix exposing (Matrix)
 import Random
 import Random.List
-import Types exposing (CellType(..), Direction(..), GridCoord, Msg(..), Ship, Turn)
+import Types exposing (Direction(..), GridCoord, GridSize, Ship, ShipDef)
+
+
+type CellType
+    = Occupied
+    | NextTo
+    | Free
+
+
+type Generator
+    = Generator
+        { matrix : Matrix CellType
+        , shipDefsToPlace : List ShipDef
+        , shipsProduced : Dict String Ship
+        }
+
+
+getProducedShips : Generator -> Dict String Ship
+getProducedShips generator =
+    case generator of
+        Generator { shipsProduced } ->
+            shipsProduced
+
+
+createGenerator : GridSize -> List ShipDef -> Generator
+createGenerator gridSize shipDefs =
+    let
+        matrix =
+            Matrix.repeat gridSize.width gridSize.height Free
+    in
+    Generator
+        { matrix = matrix
+        , shipDefsToPlace = shipDefs
+        , shipsProduced = Dict.empty
+        }
+
+
+run : Generator -> (( GridCoord, Direction ) -> msg) -> Cmd msg
+run generator msg =
+    case generator of
+        Generator { matrix } ->
+            case computeAvailableCells matrix of
+                head :: tail ->
+                    let
+                        shuffleGen =
+                            shuffleCoords head tail
+
+                        coordPlusDir =
+                            coordPlusDirection shuffleGen
+                    in
+                    Random.generate msg coordPlusDir
+
+                [] ->
+                    Cmd.none
+
+
+feed : GridCoord -> Direction -> Generator -> (( GridCoord, Direction ) -> msg) -> ( Generator, Cmd msg )
+feed pos dir generator msg =
+    case generator of
+        Generator { matrix, shipDefsToPlace, shipsProduced } ->
+            case shipDefsToPlace of
+                head :: tail ->
+                    case tryToPlace (Ship pos head.size dir head.id) matrix of
+                        ( newMatrix, Just ship ) ->
+                            let
+                                newGenerator =
+                                    Generator
+                                        { matrix = newMatrix
+                                        , shipDefsToPlace = tail
+                                        , shipsProduced = Dict.insert head.id ship shipsProduced
+                                        }
+                            in
+                            ( newGenerator
+                            , run newGenerator msg
+                            )
+
+                        _ ->
+                            ( generator
+                            , run generator msg
+                            )
+
+                [] ->
+                    ( generator, Cmd.none )
 
 
 directionGenerator : Random.Generator Direction
@@ -27,34 +110,6 @@ shuffleCoords coord coords =
 coordPlusDirection : Random.Generator GridCoord -> Random.Generator ( GridCoord, Direction )
 coordPlusDirection coordGenerator =
     Random.pair coordGenerator directionGenerator
-
-
-randomizeShipPlacements : Turn -> List GridCoord -> Cmd Msg
-randomizeShipPlacements turn cells =
-    case cells of
-        head :: tail ->
-            let
-                shuffleGen =
-                    shuffleCoords head tail
-
-                coordPlusDir =
-                    coordPlusDirection shuffleGen
-            in
-            Random.generate (GetCoordAndDirection turn) coordPlusDir
-
-        [] ->
-            Cmd.none
-
-
-createShipStartCouples : Int -> Int -> Int -> Int -> List GridCoord
-createShipStartCouples minCol minRow maxCol maxRow =
-    let
-        matrix =
-            Matrix.generate (maxCol - minCol + 1) (maxRow - minRow + 1) (\col row -> { col = col + minCol, row = row + minRow })
-    in
-    matrix
-        |> Matrix.toArray
-        |> Array.toList
 
 
 computeShipCellPositions : Ship -> List GridCoord
