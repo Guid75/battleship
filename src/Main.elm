@@ -41,11 +41,14 @@ delay time msg =
 animator : Animator.Animator Model
 animator =
     Animator.animator
-        |> Animator.watching
-            .firing
-            (\newFiring model ->
-                { model | firing = newFiring }
-            )
+
+
+
+-- |> Animator.watching
+--     .firing
+--     (\newFiring model ->
+--         { model | firing = newFiring }
+--     )
 
 
 shipDefs : List ShipDef
@@ -126,7 +129,6 @@ init flags =
       , clickedPos = { x = 0, y = 0 }
       , draggingShip = False
       , focusedShip = Nothing
-      , firing = Animator.init False
       , firingCell = Nothing
       , state = Preparing
       }
@@ -358,7 +360,7 @@ viewCpuBoard model =
                             coord
                             0
 
-                        --fireAmount
+                        -- fireAmount
                         ]
 
                 _ ->
@@ -814,27 +816,28 @@ mouseDownMyBoard event model =
             model
 
 
-mouseDownCpuBoard : Mouse.Event -> Model -> Model
+mouseDownCpuBoard : Mouse.Event -> Model -> ( Model, Cmd Msg )
 mouseDownCpuBoard event model =
     let
         cell =
             Grid.getClosestCell model.currentMousePos model.cpuBoard.grid
     in
     if model.state /= Playing Player then
-        model
+        ( model, Cmd.none )
 
     else if isAShotCoord model.cpuBoard.shots cell then
-        model
+        ( model, Cmd.none )
 
     else
-        { model
-            | firing =
-                model.firing
-                    |> Animator.go (Animator.millis 1000) True
+        let
+            afterFireModel =
+                { model | firingCell = Just cell } |> playerFire
+        in
+        if afterFireModel.state == Playing CPU then
+            ( afterFireModel, delay 1000 PlayCPU )
 
-            --not <| Animator.current model.firing)
-            , firingCell = Just cell
-        }
+        else
+            ( afterFireModel, Cmd.none )
 
 
 cancelMoveIfNeeded : Model -> Model
@@ -1020,11 +1023,11 @@ mouseUpMyBoard model =
             model
 
 
-mouseDown : String -> Mouse.Event -> Model -> Model
+mouseDown : String -> Mouse.Event -> Model -> ( Model, Cmd Msg )
 mouseDown boardId event model =
     case boardId of
         "myBoard" ->
-            mouseDownMyBoard event model
+            ( mouseDownMyBoard event model, Cmd.none )
 
         _ ->
             mouseDownCpuBoard event model
@@ -1398,7 +1401,7 @@ update msg model =
             ( pieceOut shipId model, Cmd.none )
 
         MouseDown id event ->
-            ( mouseDown id event model, Cmd.none )
+            mouseDown id event model
 
         MouseUp id event ->
             ( mouseUp id event model, Cmd.none )
@@ -1454,22 +1457,20 @@ update msg model =
                     model
                         |> Animator.update newTime animator
 
-                ( newModel, cmd ) =
-                    if Animator.arrivedAt True newTime model.firing then
-                        let
-                            afterFireModel =
-                                playerFire animModel
-                        in
-                        if afterFireModel.state == Playing CPU then
-                            ( afterFireModel, delay 1000 PlayCPU )
-
-                        else
-                            ( afterFireModel, Cmd.none )
-
-                    else
-                        ( animModel, Cmd.none )
+                -- ( newModel, cmd ) =
+                --     if Animator.arrivedAt True newTime model.firing then
+                --         let
+                --             afterFireModel =
+                --                 playerFire animModel
+                --         in
+                --         if afterFireModel.state == Playing CPU then
+                --             ( afterFireModel, delay 1000 PlayCPU )
+                --         else
+                --             ( afterFireModel, Cmd.none )
+                --     else
+                --         ( animModel, Cmd.none )
             in
-            ( newModel, cmd )
+            ( animModel, Cmd.none )
 
 
 port requestSvgMousePos : ( String, Int, Int ) -> Cmd msg

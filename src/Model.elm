@@ -6,8 +6,6 @@ module Model exposing
     , Turn(..)
     )
 
-import Animator
-import Animator.Inline
 import Dict exposing (Dict)
 import Html.Events.Extra.Mouse as Mouse
 import Matrix exposing (Matrix)
@@ -45,7 +43,6 @@ type alias Model =
     , clickedCell : Maybe GridCoord
     , clickedPos : FloatCoord
     , focusedShip : Maybe Ship
-    , firing : Animator.Timeline Bool
     , firingCell : Maybe GridCoord
     , draggingShip : Bool
     , state : State
