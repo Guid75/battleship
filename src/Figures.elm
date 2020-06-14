@@ -30,7 +30,7 @@ drawTarget grid { col, row } fireAmount =
             [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
             , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
             , r <| String.fromFloat <| grid.cellSize / 2.0 - 2.0
-            , fill <| Color.toCssString Color.gray
+            , fill <| "#00000000"
             , stroke "#FF0000"
             , strokeWidth "2.0"
             ]
@@ -38,10 +38,26 @@ drawTarget grid { col, row } fireAmount =
         , Svg.circle
             [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
             , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
-            , r <| String.fromFloat <| (grid.cellSize / 2.0 - 2.0) * fireAmount
-            , fill <| Color.toCssString Color.yellow
+            , r <| String.fromFloat <| (grid.cellSize / 2.0 - 2.0) * 0.5
+            , fill <| "#00000000"
             , stroke "#FF0000"
             , strokeWidth "2.0"
+            ]
+            []
+        , Svg.line
+            [ x1 <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
+            , y1 <| String.fromFloat <| cellCoord.y + 1.0
+            , x2 <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
+            , y2 <| String.fromFloat <| cellCoord.y + grid.cellSize - 1.0
+            , stroke "#FF0000"
+            ]
+            []
+        , Svg.line
+            [ x1 <| String.fromFloat <| cellCoord.x + 1.0
+            , y1 <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
+            , x2 <| String.fromFloat <| cellCoord.x + grid.cellSize - 1.0
+            , y2 <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
+            , stroke "#FF0000"
             ]
             []
         ]
