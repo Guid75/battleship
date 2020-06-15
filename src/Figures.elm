@@ -30,7 +30,7 @@ drawTarget grid { col, row } fireAmount =
             [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
             , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
             , r <| String.fromFloat <| grid.cellSize / 2.0 - 2.0
-            , fill <| "#00000000"
+            , fill "#00000000"
             , stroke "#FF0000"
             , strokeWidth "2.0"
             ]
@@ -39,7 +39,7 @@ drawTarget grid { col, row } fireAmount =
             [ cx <| String.fromFloat <| cellCoord.x + grid.cellSize / 2.0
             , cy <| String.fromFloat <| cellCoord.y + grid.cellSize / 2.0
             , r <| String.fromFloat <| (grid.cellSize / 2.0 - 2.0) * 0.5
-            , fill <| "#00000000"
+            , fill "#00000000"
             , stroke "#FF0000"
             , strokeWidth "2.0"
             ]
