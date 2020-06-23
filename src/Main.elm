@@ -187,14 +187,7 @@ shipToSvg grid ship =
 generateShipsCpuSvg grid ships board =
     ships
         |> Dict.values
-        |> List.filter
-            (\myShip ->
-                let
-                    shots =
-                        getAllShipShots myShip board.shots
-                in
-                List.length shots == myShip.size
-            )
+        |> List.filter (isShipSunk board.shots)
         |> List.map (\ship -> cpuShipToSvg grid ship)
 
 
@@ -1337,7 +1330,7 @@ areAllShipsSunk board =
 
 checkForEnd : Model -> Model
 checkForEnd model =
-    if Debug.log "oikk" <| areAllShipsSunk model.myBoard then
+    if areAllShipsSunk model.myBoard then
         { model | state = End CPU }
 
     else if areAllShipsSunk model.cpuBoard then
